@@ -2,7 +2,13 @@
   %head
     %title
       TODO
+    %script(src="#{url("js/jquery.min.js")}")
+    %script(src="#{url("js/jquery.svg.min.js")}")
     %script(src="#{url("js/main.js")}")
+    :javascript
+      $(function() {
+        new FixFix('#svg');
+      })
     %link(rel="stylesheet" href="#{url("css/style.css")}")
   %body
-    TODO
+    #svg
