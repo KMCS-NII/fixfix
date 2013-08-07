@@ -1,0 +1,12 @@
+*~
+*.DS_Store
+*.swp
+*.out
+
+.sass-cache
+.bundle
+vendor
+data
+tmp
+
+public/**/*.map
