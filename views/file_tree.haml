@@ -1,0 +1,10 @@
+%ul.jqueryFileTree(style="display: none;")
+  - dirs.each do |item|
+    %li.directory.collapsed
+      %a(href="#" rel="#{File.join(dir, item)}/")
+        = item
+  - files.each do |item|
+    - ext = File.extname(item)[1 .. -1]
+    %li(class="file ext_#{ext}")
+      %a(href="#" rel="#{File.join(dir, item)}")
+        = item

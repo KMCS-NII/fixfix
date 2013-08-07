@@ -1,14 +1,19 @@
 %html
   %head
     %title
-      TODO
+      FixFix
     %script(src="#{url("js/jquery.min.js")}")
     %script(src="#{url("js/jquery.svg.min.js")}")
+    %script(src="#{url("js/jqueryFileTree.js")}")
     %script(src="#{url("js/main.js")}")
     :javascript
       $(function() {
-        new FixFix('#svg');
+        fixfix = new FixFix('#svg');
       })
+    %link(rel="stylesheet" href="#{url("css/jqueryFileTree.css")}")
     %link(rel="stylesheet" href="#{url("css/style.css")}")
   %body
+    #file_browser
+      #bb_browser
+      #gaze_browser
     #svg

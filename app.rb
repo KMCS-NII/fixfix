@@ -9,9 +9,9 @@ class FixFix < Sinatra::Application
   set :haml, format: :html5
 
   # enable :sessions
-
+  
   configure :production do
-    set :haml, { :ugly=>true }
+    set :haml, { ugly: true }
     set :clean_trace, true
   end
 
