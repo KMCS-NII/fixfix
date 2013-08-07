@@ -26,11 +26,17 @@
     };
 
     FixFix.prototype.file_browser = function() {
-      return $('#bb_browser').fileTree({
-        script: 'bb_files',
+      $('#bb_browser').fileTree({
+        script: 'files/bb',
         multiFolder: false
       }, function(bb_file) {
         return console.log(bb_file);
+      });
+      return $('#gaze_browser').fileTree({
+        script: 'files/tsv',
+        multiFolder: false
+      }, function(gaze_file) {
+        return console.log(gaze_file);
       });
     };
 

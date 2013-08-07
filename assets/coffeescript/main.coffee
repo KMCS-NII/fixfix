@@ -16,11 +16,17 @@ class window.FixFix
 
   file_browser: ->
     $('#bb_browser').fileTree {
-        script: 'bb_files'
+        script: 'files/bb'
         multiFolder: false,
       },
       (bb_file) ->
         console.log bb_file
+    $('#gaze_browser').fileTree {
+        script: 'files/tsv'
+        multiFolder: false,
+      },
+      (gaze_file) ->
+        console.log gaze_file
 
   render: ->
     @render_bb()
