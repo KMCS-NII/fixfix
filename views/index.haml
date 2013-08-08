@@ -10,11 +10,18 @@
     :javascript
       $(function() {
         fixfix = new FixFix('#svg');
+        new FileBrowser(fixfix, '#bb_browser', '#gaze_browser')
       })
     %link(rel="stylesheet" href="#{url("css/jqueryFileTree.css")}")
     %link(rel="stylesheet" href="#{url("css/style.css")}")
   %body
     #file_browser
-      #bb_browser
-      #gaze_browser
+      .browser_heading
+        Document
+      .browser_container
+        #bb_browser.browser
+      .browser_heading
+        Gaze Data
+      .browser_container
+        #gaze_browser.browser
     #svg

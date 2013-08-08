@@ -1,5 +1,6 @@
 (function() {
-  var Word,
+  var Gaze, Sample, Word,
+    __slice = [].slice,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   Word = (function() {
@@ -22,6 +23,58 @@
     };
 
     return Word;
+
+  })();
+
+  Gaze = (function() {
+    function Gaze(x, y, pupil, validity) {
+      this.x = x;
+      this.y = y;
+      this.pupil = pupil;
+      this.validity = validity;
+    }
+
+    return Gaze;
+
+  })();
+
+  Sample = (function() {
+    function Sample() {
+      var args;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      this.left = (function(func, args, ctor) {
+        ctor.prototype = func.prototype;
+        var child = new ctor, result = func.apply(child, args);
+        return Object(result) === result ? result : child;
+      })(Gaze, args.slice(0, 4), function(){});
+      this.right = (function(func, args, ctor) {
+        ctor.prototype = func.prototype;
+        var child = new ctor, result = func.apply(child, args);
+        return Object(result) === result ? result : child;
+      })(Gaze, args.slice(4, 8), function(){});
+      this.avg = (function(func, args, ctor) {
+        ctor.prototype = func.prototype;
+        var child = new ctor, result = func.apply(child, args);
+        return Object(result) === result ? result : child;
+      })(Gaze, args.slice(8, 12), function(){});
+      this.time = args[13];
+      switch (args[14]) {
+        case 'f':
+          this.first = true;
+          break;
+        case 'l':
+          this.last = true;
+          break;
+        case 't':
+          this.first = this.last = true;
+      }
+    }
+
+    Sample.prototype.render = function(svg, parent) {
+      return svg.circle(parent, this.avg.x, this.avg.y, this.avg.pupil);
+    };
+
+    return Sample;
 
   })();
 
@@ -49,11 +102,19 @@
         },
         revivers: function(k, v) {
           if ($.isArray(this) && $.isArray(v)) {
-            return (function(func, args, ctor) {
-              ctor.prototype = func.prototype;
-              var child = new ctor, result = func.apply(child, args);
-              return Object(result) === result ? result : child;
-            })(Word, v, function(){});
+            if (v.length === 5) {
+              return (function(func, args, ctor) {
+                ctor.prototype = func.prototype;
+                var child = new ctor, result = func.apply(child, args);
+                return Object(result) === result ? result : child;
+              })(Word, v, function(){});
+            } else {
+              return (function(func, args, ctor) {
+                ctor.prototype = func.prototype;
+                var child = new ctor, result = func.apply(child, args);
+                return Object(result) === result ? result : child;
+              })(Sample, v, function(){});
+            }
           } else {
             return v;
           }
@@ -64,23 +125,10 @@
       });
     };
 
-    FixFix.prototype.file_browser = function() {
-      $('#bb_browser').fileTree({
-        script: 'files/bb',
-        multiFolder: false
-      }, function(bb_file) {
-        return console.log(bb_file);
-      });
-      return $('#gaze_browser').fileTree({
-        script: 'files/tsv',
-        multiFolder: false
-      }, function(gaze_file) {
-        return console.log(gaze_file);
-      });
-    };
-
     FixFix.prototype.render = function() {
-      return this.render_bb();
+      this.svg.clear();
+      this.render_bb();
+      return this.render_gaze();
     };
 
     FixFix.prototype.render_bb = function() {
@@ -102,7 +150,45 @@
       return _results;
     };
 
+    FixFix.prototype.render_gaze = function() {
+      var gaze_group, sample, _i, _len, _ref, _results;
+      window.gaze = this.data.gaze;
+      gaze_group = this.svg.group('gaze');
+      _ref = this.data.gaze;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        sample = _ref[_i];
+        if (sample != null) {
+          _results.push(sample.render(this.svg, gaze_group));
+        } else {
+          _results.push(void 0);
+        }
+      }
+      return _results;
+    };
+
     return FixFix;
+
+  })();
+
+  window.FileBrowser = (function() {
+    function FileBrowser(fixfix, bb_browser, gaze_browser) {
+      $(bb_browser).fileTree({
+        script: 'files/bb',
+        multiFolder: false
+      }, function(bb_file) {
+        this.bb_file = bb_file;
+      });
+      $(gaze_browser).fileTree({
+        script: 'files/tsv',
+        multiFolder: false
+      }, function(gaze_file) {
+        this.gaze_file = gaze_file;
+        return fixfix.load(bb_file, gaze_file);
+      });
+    }
+
+    return FileBrowser;
 
   })();
 

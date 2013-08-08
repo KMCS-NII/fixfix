@@ -39,16 +39,10 @@ module Routes
       ensure_sandboxed(bb_file, 'data')
       ensure_sandboxed(gaze_file, 'data')
 
-      bb = File.open(bb_file) do |f|
-        f.each_line.
-            reject { |line| line =~ /^\s*#/ }.
-            map { |line| Word.from_tsv(line) }
-      end
-
       content_type :json
       {
-        bb: bb,
-        gaze: {}
+        bb: Word.from_tsv(bb_file),
+        gaze: Sample.from_tsv(gaze_file),
       }.to_json
     end
 

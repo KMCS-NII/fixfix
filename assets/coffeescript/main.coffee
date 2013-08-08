@@ -9,6 +9,23 @@ class Word
       fontSize: @bottom - @top
     })
 
+class Gaze
+  constructor: (@x, @y, @pupil, @validity) ->
+
+class Sample
+  constructor: (args...) ->
+    @left = new Gaze(args[0...4]...)
+    @right = new Gaze(args[4...8]...)
+    @avg = new Gaze(args[8...12]...)
+    @time = args[13]
+    switch args[14]
+      when 'f' then @first = true
+      when 'l' then @last = true
+      when 't' then @first = @last = true
+
+  render: (svg, parent) ->
+    svg.circle(parent, @avg.x, @avg.y, @avg.pupil)
+
 class window.FixFix
   constructor: (svg) ->
     @$svg = $(svg)
@@ -24,30 +41,22 @@ class window.FixFix
         bb: bb_file
         gaze: gaze_file
       revivers: (k, v) ->
-        # arrays in array are actually Words
+        # arrays in an array are our objects
         if $.isArray(this) and $.isArray(v)
-          new Word(v...)
+          if v.length == 5
+            new Word(v...)
+          else
+            new Sample(v...)
         else
           return v
     ).then (@data) =>
       @render()
 
-  file_browser: ->
-    $('#bb_browser').fileTree {
-        script: 'files/bb'
-        multiFolder: false,
-      },
-      (bb_file) ->
-        console.log bb_file
-    $('#gaze_browser').fileTree {
-        script: 'files/tsv'
-        multiFolder: false,
-      },
-      (gaze_file) ->
-        console.log gaze_file
 
   render: ->
+    @svg.clear()
     @render_bb()
+    @render_gaze()
 
   render_bb: ->
     bb_group = @svg.group('bb')
@@ -59,3 +68,25 @@ class window.FixFix
     text_group = @svg.group(bb_group, 'text')
     for word in @data.bb
       word.render_word(@svg, bb_group)
+
+  render_gaze: ->
+    window.gaze = @data.gaze
+    gaze_group = @svg.group('gaze')
+    for sample in @data.gaze
+      if sample?
+        sample.render(@svg, gaze_group)
+
+
+class window.FileBrowser
+  constructor: (fixfix, bb_browser, gaze_browser) ->
+    $(bb_browser).fileTree {
+        script: 'files/bb'
+        multiFolder: false,
+      },
+      (@bb_file) ->
+    $(gaze_browser).fileTree {
+        script: 'files/tsv'
+        multiFolder: false,
+      },
+      (@gaze_file) ->
+        fixfix.load(bb_file, gaze_file)

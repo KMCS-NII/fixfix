@@ -1,3 +1,26 @@
+html, body {
+  margin: 0;
+  padding: 0; }
+
+#file_browser {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 200px;
+  background-color: #ddddee; }
+  #file_browser > * {
+    padding: 5px 5px 0 5px; }
+  #file_browser > *:last-child {
+    padding-bottom: 5px; }
+
+.browser_container {
+  height: 200px; }
+
+.browser {
+  background-color: #eeeeff;
+  height: 100%;
+  overflow: auto; }
+
 #bb rect {
   fill: rgba(0, 0, 0, 0.1); }
 #bb text {
