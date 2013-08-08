@@ -59,12 +59,13 @@ module Routes
       path = File.join('data', dir) 
       ensure_sandboxed(path, 'data')
 
-      Dir.chdir(path) do
-        dirs = Dir['*'].select { |item| File.directory?(item) }
-        files = Dir["*.#{ext}"]
+      dirs = Dir[File.join(path, '*')].
+          select { |item| File.directory?(item) }.
+          map { |item| item[path.length .. -1] }
+      files = Dir[File.join(path, "*.#{ext}")].
+          map { |item| item[path.length .. -1] }
 
-        haml :file_tree, :locals => { dir: dir, dirs: dirs, files: files }
-      end
+      haml :file_tree, :locals => { dir: dir, dirs: dirs, files: files }
     end
   end
 end
