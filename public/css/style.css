@@ -27,3 +27,8 @@ html, body {
   fill: rgba(0, 0, 0, 0.4);
   text-anchor: middle;
   alignment-baseline: middle; }
+
+#gaze circle.left {
+  fill: red; }
+#gaze circle.right {
+  fill: blue; }
