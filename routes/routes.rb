@@ -19,6 +19,7 @@ module Routes
       status 403
     end
 
+    # start page
     app.get "/" do
       redirect request.url + '/' if request.path_info == ''
       haml :index
@@ -32,20 +33,17 @@ module Routes
 
     # serve the data JSON
     app.get '/data.json' do
-      bb_file, gaze_file = params.values_at(:bb, :gaze).map { |file| File.join('data', file) }
+      bb_file, gaze_file = params.
+          values_at(:bb, :gaze).
+          map { |file| File.join('data', file) }
       ensure_sandboxed(bb_file, 'data')
       ensure_sandboxed(gaze_file, 'data')
 
       bb = File.open(bb_file) do |f|
-        f.each_line.reject { |line|
-          line =~ /^\s*#/
-        }.map { |line|
-          string, coordinates = *line.chomp.split("\t")
-          coordinates = coordinates.split(',')
-          Hash[%i(l t r b w).zip(coordinates << string)]
-        }
+        f.each_line.
+            reject { |line| line =~ /^\s*#/ }.
+            map { |line| Word.from_tsv(line) }
       end
-
 
       content_type :json
       {
@@ -54,6 +52,7 @@ module Routes
       }.to_json
     end
 
+    # file browser (by file extension)
     app.post '/files/:ext' do |ext|
       dir = params[:dir]
       path = File.join('data', dir) 

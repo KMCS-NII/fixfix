@@ -1,0 +1,6 @@
+#bb rect {
+  fill: rgba(0, 0, 0, 0.1); }
+#bb text {
+  fill: rgba(0, 0, 0, 0.4);
+  text-anchor: middle;
+  alignment-baseline: middle; }
