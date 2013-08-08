@@ -70,8 +70,12 @@
       }
     }
 
-    Sample.prototype.render = function(svg, parent) {
-      return svg.circle(parent, this.avg.x, this.avg.y, this.avg.pupil);
+    Sample.prototype.render = function(svg, parent, eye) {
+      var gaze;
+      gaze = this[eye];
+      return svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
+        "class": eye
+      });
     };
 
     return Sample;
@@ -128,7 +132,7 @@
     FixFix.prototype.render = function() {
       this.svg.clear();
       this.render_bb();
-      return this.render_gaze();
+      return this.render_gaze(true);
     };
 
     FixFix.prototype.render_bb = function() {
@@ -150,16 +154,26 @@
       return _results;
     };
 
-    FixFix.prototype.render_gaze = function() {
-      var gaze_group, sample, _i, _len, _ref, _results;
+    FixFix.prototype.render_gaze = function(both_eyes) {
+      var gaze_group, sample, _i, _j, _len, _len1, _ref, _ref1, _results;
       window.gaze = this.data.gaze;
       gaze_group = this.svg.group('gaze');
-      _ref = this.data.gaze;
+      if (both_eyes) {
+        _ref = this.data.gaze;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          sample = _ref[_i];
+          if (sample != null) {
+            sample.render(this.svg, gaze_group, 'left');
+            sample.render(this.svg, gaze_group, 'right');
+          }
+        }
+      }
+      _ref1 = this.data.gaze;
       _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        sample = _ref[_i];
+      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+        sample = _ref1[_j];
         if (sample != null) {
-          _results.push(sample.render(this.svg, gaze_group));
+          _results.push(sample.render(this.svg, gaze_group, 'avg'));
         } else {
           _results.push(void 0);
         }
@@ -184,7 +198,7 @@
         multiFolder: false
       }, function(gaze_file) {
         this.gaze_file = gaze_file;
-        return fixfix.load(bb_file, gaze_file);
+        return fixfix.load(this.bb_file, gaze_file);
       });
     }
 
