@@ -8,7 +8,7 @@ group :development do
   gem "sass" # , ">= 3.3.0alpha"
   gem "guard-sass"
   gem 'guard-coffeescript'
-  gem 'rb-inotify', '~> 0.8.8', :require => false
+  gem 'rb-inotify', '~> 0.9', :require => false
   gem 'rb-fsevent', :require => false
   gem 'rb-fchange', :require => false
 end
