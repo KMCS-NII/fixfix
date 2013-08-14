@@ -7,6 +7,7 @@ dir = File.dirname(__FILE__)
 
 class FixFix < Sinatra::Application
   set :haml, format: :html5
+  use Rack::Deflater
 
   # enable :sessions
   
