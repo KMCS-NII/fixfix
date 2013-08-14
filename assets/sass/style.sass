@@ -21,6 +21,10 @@ html, body
   height: 100%
   overflow: auto
 
+  .selected
+    background-color: #0000ff
+    color: #ffffff
+
 #bb
   rect
     fill: rgba(0, 0, 0, 0.10)
@@ -30,6 +34,7 @@ html, body
     alignment-baseline: middle
 #gaze
   circle
+    opacity: 0.3
     &.left
       fill: #ff0000
     &.right

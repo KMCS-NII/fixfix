@@ -27,14 +27,42 @@ class Sample
 
     render: (svg, parent, eye) ->
         gaze = this[eye]
-        svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
+        @el = []
+        this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
             class: eye
+            'data-orig-x': gaze.x
+            'data-orig-y': gaze.y
+            'data-edit-x': gaze.x + 30
+            'data-edit-y': gaze.y + 30
         })
+
+    move_to: (state) ->
+        for eye in ['avg', 'left', 'right']
+            el = this[eye].el
+            el.setAttribute('cx', el.getAttribute('data-' + state + '-x'))
+            el.setAttribute('cy', el.getAttribute('data-' + state + '-y'))
 
 class window.FixFix
     constructor: (svg) ->
         @$svg = $(svg)
         $(@$svg).svg(onLoad: @init)
+
+        # toggle edit/orig position on Shift
+        shifted = false
+        $(document).keydown (evt) =>
+            return unless @data and evt.keyCode == 16
+            if evt.shiftKey and not shifted
+                for sample in @data.gaze
+                    if sample
+                        sample.move_to('edit')
+                shifted = true
+        $(document).keyup (evt) =>
+            return unless @data and evt.keyCode == 16
+            if not evt.shiftKey and shifted
+                for sample in @data.gaze
+                    if sample
+                        sample.move_to('orig')
+                shifted = false
 
     init: (@svg) =>
 
@@ -56,7 +84,6 @@ class window.FixFix
                     return v
         ).then (@data) =>
             @render()
-
 
     render: ->
         @svg.clear()
@@ -92,15 +119,21 @@ class window.FixFix
 
 
 class window.FileBrowser
+    $bb_selected = $()
+    $gaze_selected = $()
     constructor: (fixfix, bb_browser, gaze_browser) ->
         $(bb_browser).fileTree {
                 script: 'files/bb'
                 multiFolder: false,
             },
-            (@bb_file) ->
+            (@bb_file, $bb_newly_selected) ->
+                $bb_selected.removeClass('selected')
+                ($bb_selected = $bb_newly_selected).addClass('selected')
         $(gaze_browser).fileTree {
             script: 'files/tsv'
             multiFolder: false,
             },
-            (@gaze_file) ->
+            (@gaze_file, $gaze_newly_selected) ->
+                $gaze_selected.removeClass('selected')
+                ($gaze_selected = $gaze_newly_selected).addClass('selected')
                 fixfix.load(@bb_file, gaze_file)

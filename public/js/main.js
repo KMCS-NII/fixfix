@@ -73,9 +73,27 @@
     Sample.prototype.render = function(svg, parent, eye) {
       var gaze;
       gaze = this[eye];
-      return svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
-        "class": eye
+      this.el = [];
+      return this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
+        "class": eye,
+        'data-orig-x': gaze.x,
+        'data-orig-y': gaze.y,
+        'data-edit-x': gaze.x + 30,
+        'data-edit-y': gaze.y + 30
       });
+    };
+
+    Sample.prototype.move_to = function(state) {
+      var el, eye, _i, _len, _ref, _results;
+      _ref = ['avg', 'left', 'right'];
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        eye = _ref[_i];
+        el = this[eye].el;
+        el.setAttribute('cx', el.getAttribute('data-' + state + '-x'));
+        _results.push(el.setAttribute('cy', el.getAttribute('data-' + state + '-y')));
+      }
+      return _results;
     };
 
     return Sample;
@@ -85,9 +103,44 @@
   window.FixFix = (function() {
     function FixFix(svg) {
       this.init = __bind(this.init, this);
+      var shifted,
+        _this = this;
       this.$svg = $(svg);
       $(this.$svg).svg({
         onLoad: this.init
+      });
+      shifted = false;
+      $(document).keydown(function(evt) {
+        var sample, _i, _len, _ref;
+        if (!(_this.data && evt.keyCode === 16)) {
+          return;
+        }
+        if (evt.shiftKey && !shifted) {
+          _ref = _this.data.gaze;
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            sample = _ref[_i];
+            if (sample) {
+              sample.move_to('edit');
+            }
+          }
+          return shifted = true;
+        }
+      });
+      $(document).keyup(function(evt) {
+        var sample, _i, _len, _ref;
+        if (!(_this.data && evt.keyCode === 16)) {
+          return;
+        }
+        if (!evt.shiftKey && shifted) {
+          _ref = _this.data.gaze;
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            sample = _ref[_i];
+            if (sample) {
+              sample.move_to('orig');
+            }
+          }
+          return shifted = false;
+        }
       });
     }
 
@@ -186,18 +239,28 @@
   })();
 
   window.FileBrowser = (function() {
+    var $bb_selected, $gaze_selected;
+
+    $bb_selected = $();
+
+    $gaze_selected = $();
+
     function FileBrowser(fixfix, bb_browser, gaze_browser) {
       $(bb_browser).fileTree({
         script: 'files/bb',
         multiFolder: false
-      }, function(bb_file) {
+      }, function(bb_file, $bb_newly_selected) {
         this.bb_file = bb_file;
+        $bb_selected.removeClass('selected');
+        return ($bb_selected = $bb_newly_selected).addClass('selected');
       });
       $(gaze_browser).fileTree({
         script: 'files/tsv',
         multiFolder: false
-      }, function(gaze_file) {
+      }, function(gaze_file, $gaze_newly_selected) {
         this.gaze_file = gaze_file;
+        $gaze_selected.removeClass('selected');
+        ($gaze_selected = $gaze_newly_selected).addClass('selected');
         return fixfix.load(this.bb_file, gaze_file);
       });
     }

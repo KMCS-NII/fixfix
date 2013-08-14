@@ -20,6 +20,9 @@ html, body {
   background-color: #eeeeff;
   height: 100%;
   overflow: auto; }
+  .browser .selected {
+    background-color: blue;
+    color: white; }
 
 #bb rect {
   fill: rgba(0, 0, 0, 0.1); }
@@ -28,7 +31,9 @@ html, body {
   text-anchor: middle;
   alignment-baseline: middle; }
 
-#gaze circle.left {
-  fill: red; }
-#gaze circle.right {
-  fill: blue; }
+#gaze circle {
+  opacity: 0.3; }
+  #gaze circle.left {
+    fill: red; }
+  #gaze circle.right {
+    fill: blue; }
