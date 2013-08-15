@@ -1,6 +1,5 @@
 (function() {
   var Gaze, Sample, Word,
-    __slice = [].slice,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   Word = (function() {
@@ -39,35 +38,10 @@
   })();
 
   Sample = (function() {
-    function Sample() {
-      var args;
-      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      this.left = (function(func, args, ctor) {
-        ctor.prototype = func.prototype;
-        var child = new ctor, result = func.apply(child, args);
-        return Object(result) === result ? result : child;
-      })(Gaze, args.slice(0, 4), function(){});
-      this.right = (function(func, args, ctor) {
-        ctor.prototype = func.prototype;
-        var child = new ctor, result = func.apply(child, args);
-        return Object(result) === result ? result : child;
-      })(Gaze, args.slice(4, 8), function(){});
-      this.avg = (function(func, args, ctor) {
-        ctor.prototype = func.prototype;
-        var child = new ctor, result = func.apply(child, args);
-        return Object(result) === result ? result : child;
-      })(Gaze, args.slice(8, 12), function(){});
-      this.time = args[13];
-      switch (args[14]) {
-        case 'f':
-          this.first = true;
-          break;
-        case 'l':
-          this.last = true;
-          break;
-        case 't':
-          this.first = this.last = true;
-      }
+    function Sample(time, left, right) {
+      this.time = time;
+      this.left = left;
+      this.right = right;
     }
 
     Sample.prototype.render = function(svg, parent, eye) {
@@ -85,7 +59,7 @@
 
     Sample.prototype.move_to = function(state) {
       var el, eye, _i, _len, _ref, _results;
-      _ref = ['avg', 'left', 'right'];
+      _ref = ['left', 'right'];
       _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         eye = _ref[_i];
@@ -158,23 +132,16 @@
           gaze: gaze_file
         },
         revivers: function(k, v) {
-          if ($.isArray(this) && $.isArray(v)) {
-            if (v.length === 5) {
-              return (function(func, args, ctor) {
-                ctor.prototype = func.prototype;
-                var child = new ctor, result = func.apply(child, args);
-                return Object(result) === result ? result : child;
-              })(Word, v, function(){});
-            } else {
-              return (function(func, args, ctor) {
-                ctor.prototype = func.prototype;
-                var child = new ctor, result = func.apply(child, args);
-                return Object(result) === result ? result : child;
-              })(Sample, v, function(){});
+          if ((v != null) && typeof v === 'object') {
+            if ("word" in v) {
+              return new Word(v.word, v.left, v.top, v.right, v.bottom);
+            } else if ("validity" in v) {
+              return new Gaze(v.x, v.y, v.pupil, v.validity);
+            } else if ("time" in v) {
+              return new Sample(v.time, v.left, v.right);
             }
-          } else {
-            return v;
           }
+          return v;
         }
       })).then(function(data) {
         _this.data = data;
@@ -208,30 +175,23 @@
     };
 
     FixFix.prototype.render_gaze = function(both_eyes) {
-      var gaze_group, sample, _i, _j, _len, _len1, _ref, _ref1, _results;
+      var gaze_group, sample, _i, _len, _ref, _results;
       window.gaze = this.data.gaze;
       gaze_group = this.svg.group('gaze');
       if (both_eyes) {
         _ref = this.data.gaze;
+        _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           sample = _ref[_i];
           if (sample != null) {
             sample.render(this.svg, gaze_group, 'left');
-            sample.render(this.svg, gaze_group, 'right');
+            _results.push(sample.render(this.svg, gaze_group, 'right'));
+          } else {
+            _results.push(void 0);
           }
         }
+        return _results;
       }
-      _ref1 = this.data.gaze;
-      _results = [];
-      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-        sample = _ref1[_j];
-        if (sample != null) {
-          _results.push(sample.render(this.svg, gaze_group, 'avg'));
-        } else {
-          _results.push(void 0);
-        }
-      }
-      return _results;
     };
 
     return FixFix;

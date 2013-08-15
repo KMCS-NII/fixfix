@@ -15,15 +15,7 @@ class Gaze
     constructor: (@x, @y, @pupil, @validity) ->
 
 class Sample
-    constructor: (args...) ->
-        @left = new Gaze(args[0...4]...)
-        @right = new Gaze(args[4...8]...)
-        @avg = new Gaze(args[8...12]...)
-        @time = args[13]
-        switch args[14]
-            when 'f' then @first = true
-            when 'l' then @last = true
-            when 't' then @first = @last = true
+    constructor: (@time, @left, @right) ->
 
     render: (svg, parent, eye) ->
         gaze = this[eye]
@@ -37,7 +29,7 @@ class Sample
         })
 
     move_to: (state) ->
-        for eye in ['avg', 'left', 'right']
+        for eye in ['left', 'right']
             el = this[eye].el
             el.setAttribute('cx', el.getAttribute('data-' + state + '-x'))
             el.setAttribute('cy', el.getAttribute('data-' + state + '-y'))
@@ -74,14 +66,14 @@ class window.FixFix
                 bb: bb_file
                 gaze: gaze_file
             revivers: (k, v) ->
-                # arrays in an array are our objects
-                if $.isArray(this) and $.isArray(v)
-                    if v.length == 5
-                        new Word(v...)
-                    else
-                        new Sample(v...)
-                else
-                    return v
+                if v? and typeof(v) == 'object'
+                    if "word" of v
+                        return new Word(v.word, v.left, v.top, v.right, v.bottom)
+                    else if "validity" of v
+                        return new Gaze(v.x, v.y, v.pupil, v.validity)
+                    else if "time" of v
+                        return new Sample(v.time, v.left, v.right)
+                return v
         ).then (@data) =>
             @render()
 
@@ -112,10 +104,10 @@ class window.FixFix
                     sample.render(@svg, gaze_group, 'left')
                     sample.render(@svg, gaze_group, 'right')
 
-        # average on top
-        for sample in @data.gaze
-            if sample?
-                sample.render(@svg, gaze_group, 'avg')
+#        # average on top
+#        for sample in @data.gaze
+#            if sample?
+#                sample.render(@svg, gaze_group, 'avg')
 
 
 class window.FileBrowser

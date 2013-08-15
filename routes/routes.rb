@@ -1,24 +1,15 @@
 require 'sinatra/base'
 require 'json'
 
-class ForbiddenException < Exception; end
-
 def ensure_sandboxed(file, dir)
   file = File.expand_path(file)
   dir = File.expand_path(dir)
 
-  raise ForbiddenException unless file[0 .. dir.length - 1] == dir
+  halt 403 unless file[0 .. dir.length - 1] == dir
 end
 
 module Routes
   def self.registered(app)
-    # NOTE remember that this works only when
-    #     disable :show_exceptions
-    # (which is enabled by default in `development` environment
-    app.error ForbiddenException do
-      status 403
-    end
-
     # start page
     app.get "/" do
       redirect request.url + '/' if request.path_info == ''
@@ -41,8 +32,8 @@ module Routes
 
       content_type :json
       {
-        bb: Word.from_tsv(bb_file),
-        gaze: Sample.from_tsv(gaze_file),
+        bb: Word.load(bb_file),
+        gaze: Reading.new(TobiiParser, gaze_file)
       }.to_json
     end
 

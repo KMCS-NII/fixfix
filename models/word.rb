@@ -5,21 +5,27 @@ class Word
     @word, @left, @top, @right, @bottom = *args
   end
 
-  def self.from_tsv_line(line)
+  def self.parse_line(line)
     word, coordinates = *(line.chomp.split("\t"))
     coordinates = coordinates.split(',').map(&:to_f)
     self.new(word, *coordinates)
   end
 
-  def self.from_tsv(file)
+  def self.load(file)
     File.open(file) do |f|
       f.each_line.
           reject { |line| line =~ /^\s*#/ }.
-          map { |line| self.from_tsv_line(line) }
+          map { |line| self.parse_line(line) }
     end
   end
 
-  def to_json(*opts)
-    [@word, @left, @top, @right, @bottom].to_json
+  def to_json(*a)
+    {
+      word: @word,
+      left: @left,
+      top: @top,
+      right: @right,
+      bottom: @bottom
+    }.to_json(*a)
   end
 end
