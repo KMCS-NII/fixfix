@@ -23,18 +23,20 @@ module Routes
     end
 
     # serve the data JSON
-    app.get '/data.json' do
-      bb_file, gaze_file = params.
-          values_at(:bb, :gaze).
-          map { |file| File.join('data', file) }
-      ensure_sandboxed(bb_file, 'data')
-      ensure_sandboxed(gaze_file, 'data')
+    app.get '/:type.json' do |type|
+      file = File.join('data', params[:file])
+      ensure_sandboxed(file, 'data')
+
+      data = 
+          case type
+          when "bb"
+            Word.load(file)
+          when "gaze"
+            Reading.new(TobiiParser, file)
+          end
 
       content_type :json
-      {
-        bb: Word.load(bb_file),
-        gaze: Reading.new(TobiiParser, gaze_file)
-      }.to_json
+      data.to_json
     end
 
     # file browser (by file extension)

@@ -37,7 +37,20 @@ class Sample
 class window.FixFix
     constructor: (svg) ->
         @$svg = $(svg)
+        @data = {}
         $(@$svg).svg(onLoad: @init)
+
+        # sliders
+        $('input[type="range"]').change (evt) ->
+            $target = $(evt.target)
+            $number = $target.next('input[type="number"]')
+            if $target? && $number.val() != $target.val()
+                $number.val($target.val())
+        $('input[type="number"]').change (evt) ->
+            $target = $(evt.target)
+            $number = $target.prev('input[type="range"]')
+            if $number? && $number.val() != $target.val()
+                $number.val($target.val())
 
         # toggle edit/orig position on Shift
         shifted = false
@@ -57,14 +70,15 @@ class window.FixFix
                 shifted = false
 
     init: (@svg) =>
+        @gaze_group = @svg.group('gaze')
+        @bb_group = @svg.group('bb')
 
-    load: (bb_file, gaze_file) ->
+    load: (file, type) ->
         ($.ajax
-            url: 'data.json'
+            url: "#{type}.json"
             dataType: 'json'
             data:
-                bb: bb_file
-                gaze: gaze_file
+                file: file
             revivers: (k, v) ->
                 if v? and typeof(v) == 'object'
                     if "word" of v
@@ -74,35 +88,45 @@ class window.FixFix
                     else if "time" of v
                         return new Sample(v.time, v.left, v.right)
                 return v
-        ).then (@data) =>
-            @render()
-
-    render: ->
-        @svg.clear()
-        @render_bb()
-        @render_gaze(true)
+        ).then (data) =>
+            @data[type] = data
+            switch type
+                when 'bb' then @render_bb()
+                when 'gaze' then @render_gaze()
 
     render_bb: ->
-        bb_group = @svg.group('bb')
-
-        word_group = @svg.group(bb_group, 'text')
+        $(@bb_group).empty()
+        word_group = @svg.group(@bb_group, 'text')
         for word in @data.bb
-            word.render_box(@svg, bb_group)
+            word.render_box(@svg, word_group)
 
-        text_group = @svg.group(bb_group, 'text')
+        text_group = @svg.group(@bb_group, 'text')
         for word in @data.bb
-            word.render_word(@svg, bb_group)
+            word.render_word(@svg, text_group)
 
-    render_gaze: (both_eyes) ->
+        min = @data.bb[0].top
+        max = @data.bb[0].bottom
+        for word in @data.bb
+            min = Math.min(min, word.top)
+            max = Math.max(max, word.bottom)
+        @$svg.height(max + min)
+
+
+    render_gaze: ->
+        $(@gaze_group).empty()
         window.gaze = @data.gaze
-        gaze_group = @svg.group('gaze')
-
-        # left and right eye underneath the average
-        if both_eyes
-            for sample in @data.gaze
-                if sample?
-                    sample.render(@svg, gaze_group, 'left')
-                    sample.render(@svg, gaze_group, 'right')
+        
+        # TODO: make a tree structure, depth depending on number
+        m = c = 50
+        for sample in @data.gaze
+            if c == m
+                c = 0
+                subgroup = @svg.group(@gaze_group)
+            else
+                c += 1
+            if sample?
+                sample.render(@svg, subgroup, 'left')
+                sample.render(@svg, subgroup, 'right')
 
 #        # average on top
 #        for sample in @data.gaze
@@ -118,14 +142,15 @@ class window.FileBrowser
                 script: 'files/bb'
                 multiFolder: false,
             },
-            (@bb_file, $bb_newly_selected) ->
+            (bb_file, $bb_newly_selected) ->
                 $bb_selected.removeClass('selected')
                 ($bb_selected = $bb_newly_selected).addClass('selected')
+                fixfix.load(bb_file, 'bb')
         $(gaze_browser).fileTree {
             script: 'files/tsv'
             multiFolder: false,
             },
-            (@gaze_file, $gaze_newly_selected) ->
+            (gaze_file, $gaze_newly_selected) ->
                 $gaze_selected.removeClass('selected')
                 ($gaze_selected = $gaze_newly_selected).addClass('selected')
-                fixfix.load(@bb_file, gaze_file)
+                fixfix.load(gaze_file, 'gaze')

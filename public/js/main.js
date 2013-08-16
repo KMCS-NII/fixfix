@@ -80,8 +80,25 @@
       var shifted,
         _this = this;
       this.$svg = $(svg);
+      this.data = {};
       $(this.$svg).svg({
         onLoad: this.init
+      });
+      $('input[type="range"]').change(function(evt) {
+        var $number, $target;
+        $target = $(evt.target);
+        $number = $target.next('input[type="number"]');
+        if (($target != null) && $number.val() !== $target.val()) {
+          return $number.val($target.val());
+        }
+      });
+      $('input[type="number"]').change(function(evt) {
+        var $number, $target;
+        $target = $(evt.target);
+        $number = $target.prev('input[type="range"]');
+        if (($number != null) && $number.val() !== $target.val()) {
+          return $number.val($target.val());
+        }
       });
       shifted = false;
       $(document).keydown(function(evt) {
@@ -120,16 +137,17 @@
 
     FixFix.prototype.init = function(svg) {
       this.svg = svg;
+      this.gaze_group = this.svg.group('gaze');
+      return this.bb_group = this.svg.group('bb');
     };
 
-    FixFix.prototype.load = function(bb_file, gaze_file) {
+    FixFix.prototype.load = function(file, type) {
       var _this = this;
       return ($.ajax({
-        url: 'data.json',
+        url: "" + type + ".json",
         dataType: 'json',
         data: {
-          bb: bb_file,
-          gaze: gaze_file
+          file: file
         },
         revivers: function(k, v) {
           if ((v != null) && typeof v === 'object') {
@@ -144,54 +162,65 @@
           return v;
         }
       })).then(function(data) {
-        _this.data = data;
-        return _this.render();
+        _this.data[type] = data;
+        switch (type) {
+          case 'bb':
+            return _this.render_bb();
+          case 'gaze':
+            return _this.render_gaze();
+        }
       });
     };
 
-    FixFix.prototype.render = function() {
-      this.svg.clear();
-      this.render_bb();
-      return this.render_gaze(true);
-    };
-
     FixFix.prototype.render_bb = function() {
-      var bb_group, text_group, word, word_group, _i, _j, _len, _len1, _ref, _ref1, _results;
-      bb_group = this.svg.group('bb');
-      word_group = this.svg.group(bb_group, 'text');
+      var max, min, text_group, word, word_group, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2;
+      $(this.bb_group).empty();
+      word_group = this.svg.group(this.bb_group, 'text');
       _ref = this.data.bb;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         word = _ref[_i];
-        word.render_box(this.svg, bb_group);
+        word.render_box(this.svg, word_group);
       }
-      text_group = this.svg.group(bb_group, 'text');
+      text_group = this.svg.group(this.bb_group, 'text');
       _ref1 = this.data.bb;
-      _results = [];
       for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
         word = _ref1[_j];
-        _results.push(word.render_word(this.svg, bb_group));
+        word.render_word(this.svg, text_group);
       }
-      return _results;
+      min = this.data.bb[0].top;
+      max = this.data.bb[0].bottom;
+      _ref2 = this.data.bb;
+      for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
+        word = _ref2[_k];
+        min = Math.min(min, word.top);
+        max = Math.max(max, word.bottom);
+      }
+      return this.$svg.height(max + min);
     };
 
-    FixFix.prototype.render_gaze = function(both_eyes) {
-      var gaze_group, sample, _i, _len, _ref, _results;
+    FixFix.prototype.render_gaze = function() {
+      var c, m, sample, subgroup, _i, _len, _ref, _results;
+      $(this.gaze_group).empty();
       window.gaze = this.data.gaze;
-      gaze_group = this.svg.group('gaze');
-      if (both_eyes) {
-        _ref = this.data.gaze;
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          sample = _ref[_i];
-          if (sample != null) {
-            sample.render(this.svg, gaze_group, 'left');
-            _results.push(sample.render(this.svg, gaze_group, 'right'));
-          } else {
-            _results.push(void 0);
-          }
+      m = c = 50;
+      _ref = this.data.gaze;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        sample = _ref[_i];
+        if (c === m) {
+          c = 0;
+          subgroup = this.svg.group(this.gaze_group);
+        } else {
+          c += 1;
         }
-        return _results;
+        if (sample != null) {
+          sample.render(this.svg, subgroup, 'left');
+          _results.push(sample.render(this.svg, subgroup, 'right'));
+        } else {
+          _results.push(void 0);
+        }
       }
+      return _results;
     };
 
     return FixFix;
@@ -210,18 +239,17 @@
         script: 'files/bb',
         multiFolder: false
       }, function(bb_file, $bb_newly_selected) {
-        this.bb_file = bb_file;
         $bb_selected.removeClass('selected');
-        return ($bb_selected = $bb_newly_selected).addClass('selected');
+        ($bb_selected = $bb_newly_selected).addClass('selected');
+        return fixfix.load(bb_file, 'bb');
       });
       $(gaze_browser).fileTree({
         script: 'files/tsv',
         multiFolder: false
       }, function(gaze_file, $gaze_newly_selected) {
-        this.gaze_file = gaze_file;
         $gaze_selected.removeClass('selected');
         ($gaze_selected = $gaze_newly_selected).addClass('selected');
-        return fixfix.load(this.bb_file, gaze_file);
+        return fixfix.load(gaze_file, 'gaze');
       });
     }
 

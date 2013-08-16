@@ -12,6 +12,10 @@ html, body {
     padding: 5px 5px 0 5px; }
   #file_browser > *:last-child {
     padding-bottom: 5px; }
+  #file_browser input[type="range"] {
+    width: 125px; }
+  #file_browser input[type="text"] {
+    width: 50px; }
 
 .browser_container {
   height: 200px; }
@@ -37,3 +41,6 @@ html, body {
     fill: red; }
   #gaze circle.right {
     fill: blue; }
+
+.ralign {
+  text-align: right; }
