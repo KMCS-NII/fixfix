@@ -41,6 +41,14 @@ html, body {
     fill: red; }
   #gaze circle.right {
     fill: blue; }
+#gaze line {
+  stroke-width: 0.2; }
+  #gaze line.left {
+    stroke: red; }
+  #gaze line.right {
+    stroke: blue; }
+  #gaze line.inter {
+    stroke: rgba(0, 0, 0, 0.2); }
 
 .ralign {
   text-align: right; }

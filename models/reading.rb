@@ -1,14 +1,19 @@
 class Reading
   def initialize(parser, filename)
-    @reading = parser.parse(filename)
+    @samples = parser.parse(filename)
+    @flags = parser.flags
   end
 
   def find_fixations!(fixation_algorithm)
-    @reading = fixation_algorithm.find_fixations(@reading)
+    @samples = fixation_algorithm.find_fixations(@samples)
+    @flags[:lines] = true
     self
   end
 
   def to_json(*a)
-    @reading.to_json(*a)
+    {
+      samples: @samples,
+      flags: @flags
+    }.to_json(*a)
   end
 end

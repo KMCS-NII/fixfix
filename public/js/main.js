@@ -1,6 +1,30 @@
 (function() {
-  var Gaze, Sample, Word,
+  var Gaze, Reading, Sample, Word, treedraw,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+  treedraw = function(svg, parent, size, factor, callback) {
+    var parents, recurse;
+    if (!size) {
+      return;
+    }
+    parents = [parent];
+    recurse = function(parent, level) {
+      var i, _i;
+      if (level > 0) {
+        level -= 1;
+        for (i = _i = 1; 1 <= factor ? _i <= factor : _i >= factor; i = 1 <= factor ? ++_i : --_i) {
+          recurse(svg.group(parent), level);
+          if (!size) {
+            return;
+          }
+        }
+      } else {
+        size -= 1;
+        return callback(parent, size);
+      }
+    };
+    return recurse(parent, Math.ceil(Math.log(size) / Math.log(factor)));
+  };
 
   Word = (function() {
     function Word(word, left, top, right, bottom) {
@@ -38,8 +62,9 @@
   })();
 
   Sample = (function() {
-    function Sample(time, left, right) {
+    function Sample(time, blink, left, right) {
       this.time = time;
+      this.blink = blink;
       this.left = left;
       this.right = right;
     }
@@ -49,12 +74,34 @@
       gaze = this[eye];
       this.el = [];
       return this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
+        id: eye[0] + this.time,
         "class": eye,
         'data-orig-x': gaze.x,
         'data-orig-y': gaze.y,
         'data-edit-x': gaze.x + 30,
         'data-edit-y': gaze.y + 30
       });
+    };
+
+    Sample.prototype.render_intereye = function(svg, parent) {
+      if ((this.left.x != null) && (this.left.y != null) && (this.right.x != null) && (this.right.y != null)) {
+        return this.iel = svg.line(parent, this.left.x, this.left.y, this.right.x, this.right.y, {
+          id: 'lr' + this.time,
+          "class": 'inter'
+        });
+      }
+    };
+
+    Sample.prototype.render_saccade = function(svg, parent, eye, next) {
+      var gaze1, gaze2;
+      gaze1 = this[eye];
+      gaze2 = next[eye];
+      if ((gaze1.x != null) && (gaze1.y != null) && (gaze2.x != null) && (gaze2.y != null)) {
+        return this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
+          id: eye[0] + this.time + '-' + next.time,
+          "class": eye
+        });
+      }
     };
 
     Sample.prototype.move_to = function(state) {
@@ -71,6 +118,16 @@
     };
 
     return Sample;
+
+  })();
+
+  Reading = (function() {
+    function Reading(samples, flags) {
+      this.samples = samples;
+      this.flags = flags;
+    }
+
+    return Reading;
 
   })();
 
@@ -103,11 +160,11 @@
       shifted = false;
       $(document).keydown(function(evt) {
         var sample, _i, _len, _ref;
-        if (!(_this.data && evt.keyCode === 16)) {
+        if (!(_this.data.gaze && evt.keyCode === 16)) {
           return;
         }
         if (evt.shiftKey && !shifted) {
-          _ref = _this.data.gaze;
+          _ref = _this.data.gaze.samples;
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             sample = _ref[_i];
             if (sample) {
@@ -119,11 +176,11 @@
       });
       $(document).keyup(function(evt) {
         var sample, _i, _len, _ref;
-        if (!(_this.data && evt.keyCode === 16)) {
+        if (!(_this.data.gaze && evt.keyCode === 16)) {
           return;
         }
         if (!evt.shiftKey && shifted) {
-          _ref = _this.data.gaze;
+          _ref = _this.data.gaze.samples;
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             sample = _ref[_i];
             if (sample) {
@@ -156,7 +213,9 @@
             } else if ("validity" in v) {
               return new Gaze(v.x, v.y, v.pupil, v.validity);
             } else if ("time" in v) {
-              return new Sample(v.time, v.left, v.right);
+              return new Sample(v.time, v.blink, v.left, v.right);
+            } else if ("samples" in v) {
+              return new Reading(v.samples, v.flags);
             }
           }
           return v;
@@ -199,23 +258,38 @@
     };
 
     FixFix.prototype.render_gaze = function() {
-      var c, m, sample, subgroup, _i, _len, _ref, _results;
+      var eye, samples, tree_factor, _i, _len, _ref, _results,
+        _this = this;
       $(this.gaze_group).empty();
-      window.gaze = this.data.gaze;
-      m = c = 50;
-      _ref = this.data.gaze;
+      tree_factor = 50;
+      samples = this.data.gaze.samples;
+      _ref = ['left', 'right'];
       _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        sample = _ref[_i];
-        if (c === m) {
-          c = 0;
-          subgroup = this.svg.group(this.gaze_group);
-        } else {
-          c += 1;
-        }
-        if (sample != null) {
-          sample.render(this.svg, subgroup, 'left');
-          _results.push(sample.render(this.svg, subgroup, 'right'));
+        eye = _ref[_i];
+        treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
+          var sample;
+          sample = samples[index];
+          if (sample != null) {
+            return sample.render(_this.svg, parent, eye);
+          }
+        });
+        if (this.data.gaze.flags.lines) {
+          treedraw(this.svg, this.svg.group(this.gaze_group), samples.length - 1, tree_factor, function(parent, index) {
+            var sample1, sample2;
+            sample1 = samples[index];
+            sample2 = samples[index + 1];
+            if (sample1.blink == null) {
+              return sample1.render_saccade(_this.svg, parent, eye, sample2);
+            }
+          });
+          _results.push(treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
+            var sample;
+            sample = samples[index];
+            if (sample != null) {
+              return sample.render_intereye(_this.svg, parent);
+            }
+          }));
         } else {
           _results.push(void 0);
         }

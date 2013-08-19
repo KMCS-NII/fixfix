@@ -1,5 +1,22 @@
 class TobiiParser
-  def self.parse_line(line)
+  def parse(file)
+    File.open(file) do |f|
+      # ignore the header
+      f.gets
+
+      # transform lines into Samples
+      f.each_line.map { |line|
+        parse_line(line)
+      }
+    end
+  end
+
+  def flags
+    {}
+  end
+
+  private
+  def parse_line(line)
     items = line.chomp.split("\t").
         map { |item|
           if item.strip.empty?
@@ -19,17 +36,5 @@ class TobiiParser
     left = Gaze.new(gaze_point_left_x, gaze_point_left_y, pupil_left, validity_left)
     right = Gaze.new(gaze_point_right_x, gaze_point_right_y, pupil_right, validity_right)
     Sample.new(time, left, right)
-  end
-
-  def self.parse(file)
-    File.open(file) do |f|
-      # ignore the header
-      f.gets
-
-      # transform lines into Samples
-      f.each_line.map { |line|
-        self.parse_line(line)
-      }
-    end
   end
 end

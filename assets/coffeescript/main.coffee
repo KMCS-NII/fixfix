@@ -1,5 +1,19 @@
 # vim: ts=4:sts=4:sw=4
 
+treedraw = (svg, parent, size, factor, callback) ->
+    return unless size
+    parents = [parent]
+    recurse = (parent, level) ->
+        if level > 0
+            level -= 1
+            for i in [1..factor]
+                recurse(svg.group(parent), level)
+                return unless size
+        else
+            size -= 1
+            callback(parent, size)
+    recurse(parent, Math.ceil(Math.log(size) / Math.log(factor)))
+
 class Word
     constructor: (@word, @left, @top, @right, @bottom) ->
 
@@ -15,12 +29,13 @@ class Gaze
     constructor: (@x, @y, @pupil, @validity) ->
 
 class Sample
-    constructor: (@time, @left, @right) ->
+    constructor: (@time, @blink, @left, @right) ->
 
     render: (svg, parent, eye) ->
         gaze = this[eye]
         @el = []
         this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
+            id: eye[0] + @time
             class: eye
             'data-orig-x': gaze.x
             'data-orig-y': gaze.y
@@ -28,11 +43,30 @@ class Sample
             'data-edit-y': gaze.y + 30
         })
 
+    render_intereye: (svg, parent) ->
+        if @left.x? and @left.y? and @right.x? and @right.y?
+            this.iel = svg.line(parent, @left.x, @left.y, @right.x, @right.y, {
+                id: 'lr' + @time
+                class: 'inter'
+            })
+
+    render_saccade: (svg, parent, eye, next) ->
+        gaze1 = this[eye]
+        gaze2 = next[eye]
+        if gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
+            this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
+                id: eye[0] + @time + '-' + next.time
+                class: eye
+            })
+
     move_to: (state) ->
         for eye in ['left', 'right']
             el = this[eye].el
             el.setAttribute('cx', el.getAttribute('data-' + state + '-x'))
             el.setAttribute('cy', el.getAttribute('data-' + state + '-y'))
+
+class Reading
+    constructor: (@samples, @flags) ->
 
 class window.FixFix
     constructor: (svg) ->
@@ -55,16 +89,16 @@ class window.FixFix
         # toggle edit/orig position on Shift
         shifted = false
         $(document).keydown (evt) =>
-            return unless @data and evt.keyCode == 16
+            return unless @data.gaze and evt.keyCode == 16
             if evt.shiftKey and not shifted
-                for sample in @data.gaze
+                for sample in @data.gaze.samples
                     if sample
                         sample.move_to('edit')
                 shifted = true
         $(document).keyup (evt) =>
-            return unless @data and evt.keyCode == 16
+            return unless @data.gaze and evt.keyCode == 16
             if not evt.shiftKey and shifted
-                for sample in @data.gaze
+                for sample in @data.gaze.samples
                     if sample
                         sample.move_to('orig')
                 shifted = false
@@ -86,7 +120,9 @@ class window.FixFix
                     else if "validity" of v
                         return new Gaze(v.x, v.y, v.pupil, v.validity)
                     else if "time" of v
-                        return new Sample(v.time, v.left, v.right)
+                        return new Sample(v.time, v.blink, v.left, v.right)
+                    else if "samples" of v
+                        return new Reading(v.samples, v.flags)
                 return v
         ).then (data) =>
             @data[type] = data
@@ -114,24 +150,24 @@ class window.FixFix
 
     render_gaze: ->
         $(@gaze_group).empty()
-        window.gaze = @data.gaze
+        tree_factor = 50
         
-        # TODO: make a tree structure, depth depending on number
-        m = c = 50
-        for sample in @data.gaze
-            if c == m
-                c = 0
-                subgroup = @svg.group(@gaze_group)
-            else
-                c += 1
-            if sample?
-                sample.render(@svg, subgroup, 'left')
-                sample.render(@svg, subgroup, 'right')
-
-#        # average on top
-#        for sample in @data.gaze
-#            if sample?
-#                sample.render(@svg, gaze_group, 'avg')
+        samples = @data.gaze.samples
+        for eye in ['left', 'right']
+            treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
+                sample = samples[index]
+                if sample?
+                    sample.render(@svg, parent, eye)
+            if @data.gaze.flags.lines
+                treedraw @svg, @svg.group(@gaze_group), samples.length - 1, tree_factor, (parent, index) =>
+                    sample1 = samples[index]
+                    sample2 = samples[index + 1]
+                    unless sample1.blink?
+                        sample1.render_saccade(@svg, parent, eye, sample2)
+                treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
+                    sample = samples[index]
+                    if sample?
+                        sample.render_intereye(@svg, parent)
 
 
 class window.FileBrowser
@@ -154,3 +190,5 @@ class window.FileBrowser
                 $gaze_selected.removeClass('selected')
                 ($gaze_selected = $gaze_newly_selected).addClass('selected')
                 fixfix.load(gaze_file, 'gaze')
+
+

@@ -32,7 +32,7 @@ module Routes
           when "bb"
             Word.load(file)
           when "gaze"
-            Reading.new(TobiiParser, file)
+            Reading.new(TobiiParser.new, file)
           end
 
       content_type :json
