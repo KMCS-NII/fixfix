@@ -69,6 +69,12 @@
       this.right = right;
     }
 
+    Sample.prototype.build_center = function() {
+      if (this.left.x && this.left.y && this.right.x && this.right.y) {
+        return this.center = new Gaze((this.left.x + this.right.x) / 2, (this.left.y + this.right.y) / 2, (this.left.pupil + this.right.pupil) / 2, this.left.validity > this.right.validity ? this.left.validity : this.right.validity);
+      }
+    };
+
     Sample.prototype.render = function(svg, parent, eye) {
       var gaze;
       gaze = this[eye];
@@ -111,8 +117,12 @@
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         eye = _ref[_i];
         el = this[eye].el;
-        el.setAttribute('cx', el.getAttribute('data-' + state + '-x'));
-        _results.push(el.setAttribute('cy', el.getAttribute('data-' + state + '-y')));
+        if (el) {
+          el.setAttribute('cx', el.getAttribute('data-' + state + '-x'));
+          _results.push(el.setAttribute('cy', el.getAttribute('data-' + state + '-y')));
+        } else {
+          _results.push(void 0);
+        }
       }
       return _results;
     };
@@ -194,18 +204,18 @@
 
     FixFix.prototype.init = function(svg) {
       this.svg = svg;
-      this.gaze_group = this.svg.group('gaze');
-      return this.bb_group = this.svg.group('bb');
+      this.bb_group = this.svg.group('bb');
+      return this.gaze_group = this.svg.group('gaze');
     };
 
-    FixFix.prototype.load = function(file, type) {
+    FixFix.prototype.load = function(file, type, opts) {
       var _this = this;
+      opts = opts || {};
+      opts.file = file;
       return ($.ajax({
         url: "" + type + ".json",
         dataType: 'json',
-        data: {
-          file: file
-        },
+        data: opts,
         revivers: function(k, v) {
           if ((v != null) && typeof v === 'object') {
             if ("word" in v) {
@@ -221,11 +231,20 @@
           return v;
         }
       })).then(function(data) {
+        var sample, _i, _len, _ref;
         _this.data[type] = data;
+        _this.data[type].opts = opts;
         switch (type) {
           case 'bb':
             return _this.render_bb();
           case 'gaze':
+            if (_this.data.gaze.flags.center) {
+              _ref = _this.data.gaze.samples;
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                sample = _ref[_i];
+                sample.build_center();
+              }
+            }
             return _this.render_gaze();
         }
       });
@@ -258,15 +277,17 @@
     };
 
     FixFix.prototype.render_gaze = function() {
-      var eye, samples, tree_factor, _i, _len, _ref, _results,
+      var eye, eyes, samples, tree_factor, _i, _len,
         _this = this;
       $(this.gaze_group).empty();
       tree_factor = 50;
       samples = this.data.gaze.samples;
-      _ref = ['left', 'right'];
-      _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        eye = _ref[_i];
+      eyes = ['left', 'right'];
+      if (this.data.gaze.flags.center) {
+        eyes.push('center');
+      }
+      for (_i = 0, _len = eyes.length; _i < _len; _i++) {
+        eye = eyes[_i];
         treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
           var sample;
           sample = samples[index];
@@ -279,22 +300,21 @@
             var sample1, sample2;
             sample1 = samples[index];
             sample2 = samples[index + 1];
-            if (sample1.blink == null) {
+            if ((sample1 != null) && (sample2 != null) && !sample1.blink) {
               return sample1.render_saccade(_this.svg, parent, eye, sample2);
             }
           });
-          _results.push(treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
-            var sample;
-            sample = samples[index];
-            if (sample != null) {
-              return sample.render_intereye(_this.svg, parent);
-            }
-          }));
-        } else {
-          _results.push(void 0);
         }
       }
-      return _results;
+      if (this.data.gaze.flags.lines) {
+        return treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
+          var sample;
+          sample = samples[index];
+          if (sample != null) {
+            return sample.render_intereye(_this.svg, parent);
+          }
+        });
+      }
     };
 
     return FixFix;
@@ -309,10 +329,12 @@
     $gaze_selected = $();
 
     function FileBrowser(fixfix, bb_browser, gaze_browser) {
+      var _this = this;
       $(bb_browser).fileTree({
         script: 'files/bb',
         multiFolder: false
       }, function(bb_file, $bb_newly_selected) {
+        _this.bb_file = bb_file;
         $bb_selected.removeClass('selected');
         ($bb_selected = $bb_newly_selected).addClass('selected');
         return fixfix.load(bb_file, 'bb');
@@ -321,9 +343,22 @@
         script: 'files/tsv',
         multiFolder: false
       }, function(gaze_file, $gaze_newly_selected) {
+        _this.gaze_file = gaze_file;
         $gaze_selected.removeClass('selected');
         ($gaze_selected = $gaze_newly_selected).addClass('selected');
         return fixfix.load(gaze_file, 'gaze');
+      });
+      $('#i-dt-options').submit(function(evt) {
+        var blink, dispersion, duration;
+        dispersion = parseInt($('#dispersion_n').val(), 10);
+        duration = parseInt($('#duration_n').val(), 10);
+        blink = parseInt($('#blink_n').val(), 10);
+        fixfix.load(_this.gaze_file, 'gaze', {
+          dispersion: dispersion,
+          duration: duration,
+          blink: blink
+        });
+        return false;
       });
     }
 

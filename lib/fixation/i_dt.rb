@@ -14,13 +14,13 @@ class I_DT
       left_max_x = left_min_x = left_max_y = left_min_y = nil
       right_max_x = right_min_x = right_max_y = right_min_y = nil
 
-      # skip over records that are invalid for both eyes
+      # skip over records that are invalid for both eyes as blinking time
       blink = samples.take_while { |sample| sample.invalid? }
       unless blink.empty?
         samples.shift(blink.size)
         blink_time = blink.last.time - blink.first.time
 
-        # is it a blink?
+        # is it a blink after a fixation?
         if !fixations.empty? && blink_time > @blink
           fixations.last.blink = blink_time
         end

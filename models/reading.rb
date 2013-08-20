@@ -7,6 +7,7 @@ class Reading
   def find_fixations!(fixation_algorithm)
     @samples = fixation_algorithm.find_fixations(@samples)
     @flags[:lines] = true
+    @flags[:center] = true
     self
   end
 

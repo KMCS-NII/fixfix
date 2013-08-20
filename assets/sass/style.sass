@@ -39,17 +39,21 @@ html, body
     alignment-baseline: middle
 #gaze
   circle
-    opacity: 0.3
     &.left
-      fill: #ff0000
+      fill: rgba(255, 0, 0, 0.3)
     &.right
-      fill: #0000ff
+      fill: rgba(0, 0, 255, 0.3)
+    &.center
+      fill: rgba(0, 0, 0, 0.8)
   line
-    stroke-width: 0.2
+    stroke-width: 0.5
     &.left
-      stroke: #ff0000
+      stroke: rgba(255, 0, 0, 0.5)
     &.right
-      stroke: #0000ff
+      stroke: rgba(0, 0, 255, 0.5)
+    &.center
+      stroke: rgba(0, 0, 0, 0.5)
+      stroke-width: 1
     &.inter
       stroke: rgba(0, 0, 0, 0.2)
 

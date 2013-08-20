@@ -35,18 +35,21 @@ html, body {
   text-anchor: middle;
   alignment-baseline: middle; }
 
-#gaze circle {
-  opacity: 0.3; }
-  #gaze circle.left {
-    fill: red; }
-  #gaze circle.right {
-    fill: blue; }
+#gaze circle.left {
+  fill: rgba(255, 0, 0, 0.3); }
+#gaze circle.right {
+  fill: rgba(0, 0, 255, 0.3); }
+#gaze circle.center {
+  fill: rgba(0, 0, 0, 0.8); }
 #gaze line {
-  stroke-width: 0.2; }
+  stroke-width: 0.5; }
   #gaze line.left {
-    stroke: red; }
+    stroke: rgba(255, 0, 0, 0.5); }
   #gaze line.right {
-    stroke: blue; }
+    stroke: rgba(0, 0, 255, 0.5); }
+  #gaze line.center {
+    stroke: rgba(0, 0, 0, 0.5);
+    stroke-width: 1; }
   #gaze line.inter {
     stroke: rgba(0, 0, 0, 0.2); }
 

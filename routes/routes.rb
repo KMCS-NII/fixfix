@@ -32,7 +32,14 @@ module Routes
           when "bb"
             Word.load(file)
           when "gaze"
-            Reading.new(TobiiParser.new, file)
+            reading = Reading.new(TobiiParser.new, file)
+            if params[:dispersion]
+              # fixation detection requested
+              reading.find_fixations!(I_DT.new(
+                *params.values_at(:dispersion, :duration, :blink).map(&:to_f)
+              ))
+            end
+            reading
           end
 
       content_type :json

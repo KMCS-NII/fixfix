@@ -3,6 +3,8 @@ require 'json'
 class Sample
   attr_accessor :break, :left, :right, :time, :blink
 
+  VALIDITY_LIMIT = 4
+
   def initialize(time, left, right)
     @left = left
     @right = right
@@ -10,15 +12,17 @@ class Sample
   end
 
   def invalid?
-    (!@left.validity || @left.validity == 4) &&
-        (!@right.validity || @right.validity == 4)
+    (!@left.validity || @left.validity >= VALIDITY_LIMIT) &&
+        (!@right.validity || @right.validity >= VALIDITY_LIMIT)
   end
 
   def to_json(*a)
-    {
-      left: @left,
-      right: @right,
+    rep = {
       time: @time
-    }.to_json(*a)
+    }
+    rep[:left] = @left if @left
+    rep[:right] = @right if @right
+    rep[:blink] = @blink if @blink
+    rep.to_json(*a)
   end
 end

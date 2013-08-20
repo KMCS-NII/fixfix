@@ -31,6 +31,15 @@ class Gaze
 class Sample
     constructor: (@time, @blink, @left, @right) ->
 
+    build_center: ->
+        if @left.x and @left.y and @right.x and @right.y
+            @center = new Gaze(
+                (@left.x + @right.x) / 2,
+                (@left.y + @right.y) / 2,
+                (@left.pupil + @right.pupil) / 2,
+                if @left.validity > @right.validity then @left.validity else @right.validity
+            )
+
     render: (svg, parent, eye) ->
         gaze = this[eye]
         @el = []
@@ -62,8 +71,9 @@ class Sample
     move_to: (state) ->
         for eye in ['left', 'right']
             el = this[eye].el
-            el.setAttribute('cx', el.getAttribute('data-' + state + '-x'))
-            el.setAttribute('cy', el.getAttribute('data-' + state + '-y'))
+            if el
+                el.setAttribute('cx', el.getAttribute('data-' + state + '-x'))
+                el.setAttribute('cy', el.getAttribute('data-' + state + '-y'))
 
 class Reading
     constructor: (@samples, @flags) ->
@@ -104,15 +114,16 @@ class window.FixFix
                 shifted = false
 
     init: (@svg) =>
-        @gaze_group = @svg.group('gaze')
         @bb_group = @svg.group('bb')
+        @gaze_group = @svg.group('gaze')
 
-    load: (file, type) ->
+    load: (file, type, opts) ->
+        opts = opts || {}
+        opts.file = file
         ($.ajax
             url: "#{type}.json"
             dataType: 'json'
-            data:
-                file: file
+            data: opts
             revivers: (k, v) ->
                 if v? and typeof(v) == 'object'
                     if "word" of v
@@ -126,9 +137,14 @@ class window.FixFix
                 return v
         ).then (data) =>
             @data[type] = data
+            @data[type].opts = opts # TODO return them from AJAX
             switch type
                 when 'bb' then @render_bb()
-                when 'gaze' then @render_gaze()
+                when 'gaze'
+                    if @data.gaze.flags.center
+                        for sample in @data.gaze.samples
+                            sample.build_center()
+                    @render_gaze()
 
     render_bb: ->
         $(@bb_group).empty()
@@ -147,13 +163,15 @@ class window.FixFix
             max = Math.max(max, word.bottom)
         @$svg.height(max + min)
 
-
     render_gaze: ->
         $(@gaze_group).empty()
         tree_factor = 50
         
         samples = @data.gaze.samples
-        for eye in ['left', 'right']
+        eyes = ['left', 'right']
+        if @data.gaze.flags.center
+            eyes.push('center')
+        for eye in eyes
             treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
                 sample = samples[index]
                 if sample?
@@ -162,12 +180,13 @@ class window.FixFix
                 treedraw @svg, @svg.group(@gaze_group), samples.length - 1, tree_factor, (parent, index) =>
                     sample1 = samples[index]
                     sample2 = samples[index + 1]
-                    unless sample1.blink?
+                    if sample1? and sample2? and !sample1.blink
                         sample1.render_saccade(@svg, parent, eye, sample2)
-                treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
-                    sample = samples[index]
-                    if sample?
-                        sample.render_intereye(@svg, parent)
+        if @data.gaze.flags.lines
+            treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
+                sample = samples[index]
+                if sample?
+                    sample.render_intereye(@svg, parent)
 
 
 class window.FileBrowser
@@ -178,17 +197,28 @@ class window.FileBrowser
                 script: 'files/bb'
                 multiFolder: false,
             },
-            (bb_file, $bb_newly_selected) ->
+            (@bb_file, $bb_newly_selected) =>
                 $bb_selected.removeClass('selected')
                 ($bb_selected = $bb_newly_selected).addClass('selected')
                 fixfix.load(bb_file, 'bb')
+
         $(gaze_browser).fileTree {
             script: 'files/tsv'
             multiFolder: false,
             },
-            (gaze_file, $gaze_newly_selected) ->
+            (@gaze_file, $gaze_newly_selected) =>
                 $gaze_selected.removeClass('selected')
                 ($gaze_selected = $gaze_newly_selected).addClass('selected')
                 fixfix.load(gaze_file, 'gaze')
 
+        $('#i-dt-options').submit (evt) =>
+            dispersion = parseInt($('#dispersion_n').val(), 10)
+            duration = parseInt($('#duration_n').val(), 10)
+            blink = parseInt($('#blink_n').val(), 10)
+            fixfix.load(@gaze_file, 'gaze', {
+                dispersion: dispersion
+                duration: duration
+                blink: blink
+            })
+            false
 
