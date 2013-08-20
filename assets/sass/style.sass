@@ -13,6 +13,11 @@ html, body
   & > *:last-child
     padding-bottom: 5px
 
+  input[type="range"]
+    width: 125px
+  input[type="text"]
+    width: 50px
+
 .browser_container
   height: 200px
 
@@ -20,6 +25,10 @@ html, body
   background-color: #eeeeff
   height: 100%
   overflow: auto
+
+  .selected
+    background-color: #0000ff
+    color: #ffffff
 
 #bb
   rect
@@ -31,6 +40,22 @@ html, body
 #gaze
   circle
     &.left
-      fill: #ff0000
+      fill: rgba(255, 0, 0, 0.3)
     &.right
-      fill: #0000ff
+      fill: rgba(0, 0, 255, 0.3)
+    &.center
+      fill: rgba(0, 0, 0, 0.8)
+  line
+    stroke-width: 0.5
+    &.left
+      stroke: rgba(255, 0, 0, 0.5)
+    &.right
+      stroke: rgba(0, 0, 255, 0.5)
+    &.center
+      stroke: rgba(0, 0, 0, 0.5)
+      stroke-width: 1
+    &.inter
+      stroke: rgba(0, 0, 0, 0.2)
+
+.ralign
+  text-align: right

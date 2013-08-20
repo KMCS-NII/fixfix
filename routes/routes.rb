@@ -1,24 +1,15 @@
 require 'sinatra/base'
 require 'json'
 
-class ForbiddenException < Exception; end
-
 def ensure_sandboxed(file, dir)
   file = File.expand_path(file)
   dir = File.expand_path(dir)
 
-  raise ForbiddenException unless file[0 .. dir.length - 1] == dir
+  halt 403 unless file[0 .. dir.length - 1] == dir
 end
 
 module Routes
   def self.registered(app)
-    # NOTE remember that this works only when
-    #     disable :show_exceptions
-    # (which is enabled by default in `development` environment
-    app.error ForbiddenException do
-      status 403
-    end
-
     # start page
     app.get "/" do
       redirect request.url + '/' if request.path_info == ''
@@ -32,18 +23,27 @@ module Routes
     end
 
     # serve the data JSON
-    app.get '/data.json' do
-      bb_file, gaze_file = params.
-          values_at(:bb, :gaze).
-          map { |file| File.join('data', file) }
-      ensure_sandboxed(bb_file, 'data')
-      ensure_sandboxed(gaze_file, 'data')
+    app.get '/:type.json' do |type|
+      file = File.join('data', params[:file])
+      ensure_sandboxed(file, 'data')
+
+      data = 
+          case type
+          when "bb"
+            Word.load(file)
+          when "gaze"
+            reading = Reading.new(TobiiParser.new, file)
+            if params[:dispersion]
+              # fixation detection requested
+              reading.find_fixations!(I_DT.new(
+                *params.values_at(:dispersion, :duration, :blink).map(&:to_f)
+              ))
+            end
+            reading
+          end
 
       content_type :json
-      {
-        bb: Word.from_tsv(bb_file),
-        gaze: Sample.from_tsv(gaze_file),
-      }.to_json
+      data.to_json
     end
 
     # file browser (by file extension)

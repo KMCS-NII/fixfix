@@ -68,6 +68,7 @@ DEPENDENCIES
   guard-rack
   guard-sass
   haml
+  pry
   rb-fchange
   rb-fsevent
   rb-inotify (~> 0.9)

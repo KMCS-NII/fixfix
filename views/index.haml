@@ -24,4 +24,21 @@
         Gaze Data
       .browser_container
         #gaze_browser.browser
+      %div#i-dt-options
+        %div
+          %input#i-dt(type="checkbox")
+          %label(for="i-dt")
+            Fixations (I-DT)
+        %div
+          Dispersion threshold (px)
+          %input#dispersion(type="range" min="10" max="100" value="46")
+          %input#dispersion_n(type="number" min="10" max="100" value="46")
+        %div
+          Duration threshold (ms)
+          %input#duration(type="range" min="10" max="100" value="60")
+          %input#duration_n(type="number" min="10" max="100" value="60")
+        %div
+          Blink threshold (ms)
+          %input#blink(type="range" min="20" max="400" value="70")
+          %input#blink_n(type="number" min="20" max="400" value="70")
     #svg

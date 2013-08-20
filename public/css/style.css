@@ -12,6 +12,10 @@ html, body {
     padding: 5px 5px 0 5px; }
   #file_browser > *:last-child {
     padding-bottom: 5px; }
+  #file_browser input[type="range"] {
+    width: 125px; }
+  #file_browser input[type="text"] {
+    width: 50px; }
 
 .browser_container {
   height: 200px; }
@@ -20,6 +24,9 @@ html, body {
   background-color: #eeeeff;
   height: 100%;
   overflow: auto; }
+  .browser .selected {
+    background-color: blue;
+    color: white; }
 
 #bb rect {
   fill: rgba(0, 0, 0, 0.1); }
@@ -29,6 +36,22 @@ html, body {
   alignment-baseline: middle; }
 
 #gaze circle.left {
-  fill: red; }
+  fill: rgba(255, 0, 0, 0.3); }
 #gaze circle.right {
-  fill: blue; }
+  fill: rgba(0, 0, 255, 0.3); }
+#gaze circle.center {
+  fill: rgba(0, 0, 0, 0.8); }
+#gaze line {
+  stroke-width: 0.5; }
+  #gaze line.left {
+    stroke: rgba(255, 0, 0, 0.5); }
+  #gaze line.right {
+    stroke: rgba(0, 0, 255, 0.5); }
+  #gaze line.center {
+    stroke: rgba(0, 0, 0, 0.5);
+    stroke-width: 1; }
+  #gaze line.inter {
+    stroke: rgba(0, 0, 0, 0.2); }
+
+.ralign {
+  text-align: right; }
