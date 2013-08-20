@@ -32,7 +32,7 @@ class Sample
     constructor: (@time, @blink, @left, @right) ->
 
     build_center: ->
-        if @left.x and @left.y and @right.x and @right.y
+        if @left.x? and @left.y? and @right.x? and @right.y?
             @center = new Gaze(
                 (@left.x + @right.x) / 2,
                 (@left.y + @right.y) / 2,
@@ -43,14 +43,15 @@ class Sample
     render: (svg, parent, eye) ->
         gaze = this[eye]
         @el = []
-        this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
-            id: eye[0] + @time
-            class: eye
-            'data-orig-x': gaze.x
-            'data-orig-y': gaze.y
-            'data-edit-x': gaze.x + 30
-            'data-edit-y': gaze.y + 30
-        })
+        if gaze? and gaze.x? and gaze.y? and gaze.pupil?
+            this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
+                id: eye[0] + @time
+                class: eye
+                'data-orig-x': gaze.x
+                'data-orig-y': gaze.y
+                'data-edit-x': gaze.x + 30
+                'data-edit-y': gaze.y + 30
+            })
 
     render_intereye: (svg, parent) ->
         if @left.x? and @left.y? and @right.x? and @right.y?
@@ -62,7 +63,7 @@ class Sample
     render_saccade: (svg, parent, eye, next) ->
         gaze1 = this[eye]
         gaze2 = next[eye]
-        if gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
+        if gaze1? and gaze2? and gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
             this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
                 id: eye[0] + @time + '-' + next.time
                 class: eye
@@ -190,9 +191,13 @@ class window.FixFix
 
 
 class window.FileBrowser
-    $bb_selected = $()
-    $gaze_selected = $()
     constructor: (fixfix, bb_browser, gaze_browser) ->
+        opts = {}
+        $bb_selected = $()
+        $gaze_selected = $()
+        load_timer = null
+        fixations = $('#i-dt').is(':checked')
+
         $(bb_browser).fileTree {
                 script: 'files/bb'
                 multiFolder: false,
@@ -209,16 +214,28 @@ class window.FileBrowser
             (@gaze_file, $gaze_newly_selected) =>
                 $gaze_selected.removeClass('selected')
                 ($gaze_selected = $gaze_newly_selected).addClass('selected')
-                fixfix.load(gaze_file, 'gaze')
+                fixfix.load(@gaze_file, 'gaze', opts)
 
-        $('#i-dt-options').submit (evt) =>
-            dispersion = parseInt($('#dispersion_n').val(), 10)
-            duration = parseInt($('#duration_n').val(), 10)
-            blink = parseInt($('#blink_n').val(), 10)
-            fixfix.load(@gaze_file, 'gaze', {
-                dispersion: dispersion
-                duration: duration
-                blink: blink
-            })
-            false
+        load_handler = (evt) =>
+            fixations = $('#i-dt').is(':checked')
+            if fixations
+                dispersion = parseInt($('#dispersion_n').val(), 10)
+                duration = parseInt($('#duration_n').val(), 10)
+                blink = parseInt($('#blink_n').val(), 10)
+                opts =
+                    dispersion: dispersion
+                    duration: duration
+                    blink: blink
+            else
+                opts = {}
+            if @gaze_file
+                clearTimeout(load_timer)
+                timeout_handler = =>
+                    fixfix.load(@gaze_file, 'gaze', opts)
+            load_timer = setTimeout(timeout_handler, 500)
+        $('#i-dt-options input[type="range"], #i-dt-options input[type="number"]').bind('input', (evt) ->
+            if fixations
+                load_handler(evt)
+        )
+        $('#i-dt').click('input', load_handler)
 

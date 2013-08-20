@@ -70,7 +70,7 @@
     }
 
     Sample.prototype.build_center = function() {
-      if (this.left.x && this.left.y && this.right.x && this.right.y) {
+      if ((this.left.x != null) && (this.left.y != null) && (this.right.x != null) && (this.right.y != null)) {
         return this.center = new Gaze((this.left.x + this.right.x) / 2, (this.left.y + this.right.y) / 2, (this.left.pupil + this.right.pupil) / 2, this.left.validity > this.right.validity ? this.left.validity : this.right.validity);
       }
     };
@@ -79,14 +79,16 @@
       var gaze;
       gaze = this[eye];
       this.el = [];
-      return this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
-        id: eye[0] + this.time,
-        "class": eye,
-        'data-orig-x': gaze.x,
-        'data-orig-y': gaze.y,
-        'data-edit-x': gaze.x + 30,
-        'data-edit-y': gaze.y + 30
-      });
+      if ((gaze != null) && (gaze.x != null) && (gaze.y != null) && (gaze.pupil != null)) {
+        return this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
+          id: eye[0] + this.time,
+          "class": eye,
+          'data-orig-x': gaze.x,
+          'data-orig-y': gaze.y,
+          'data-edit-x': gaze.x + 30,
+          'data-edit-y': gaze.y + 30
+        });
+      }
     };
 
     Sample.prototype.render_intereye = function(svg, parent) {
@@ -102,7 +104,7 @@
       var gaze1, gaze2;
       gaze1 = this[eye];
       gaze2 = next[eye];
-      if ((gaze1.x != null) && (gaze1.y != null) && (gaze2.x != null) && (gaze2.y != null)) {
+      if ((gaze1 != null) && (gaze2 != null) && (gaze1.x != null) && (gaze1.y != null) && (gaze2.x != null) && (gaze2.y != null)) {
         return this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
           id: eye[0] + this.time + '-' + next.time,
           "class": eye
@@ -322,14 +324,14 @@
   })();
 
   window.FileBrowser = (function() {
-    var $bb_selected, $gaze_selected;
-
-    $bb_selected = $();
-
-    $gaze_selected = $();
-
     function FileBrowser(fixfix, bb_browser, gaze_browser) {
-      var _this = this;
+      var $bb_selected, $gaze_selected, fixations, load_handler, load_timer, opts,
+        _this = this;
+      opts = {};
+      $bb_selected = $();
+      $gaze_selected = $();
+      load_timer = null;
+      fixations = $('#i-dt').is(':checked');
       $(bb_browser).fileTree({
         script: 'files/bb',
         multiFolder: false
@@ -346,20 +348,37 @@
         _this.gaze_file = gaze_file;
         $gaze_selected.removeClass('selected');
         ($gaze_selected = $gaze_newly_selected).addClass('selected');
-        return fixfix.load(gaze_file, 'gaze');
+        return fixfix.load(_this.gaze_file, 'gaze', opts);
       });
-      $('#i-dt-options').submit(function(evt) {
-        var blink, dispersion, duration;
-        dispersion = parseInt($('#dispersion_n').val(), 10);
-        duration = parseInt($('#duration_n').val(), 10);
-        blink = parseInt($('#blink_n').val(), 10);
-        fixfix.load(_this.gaze_file, 'gaze', {
-          dispersion: dispersion,
-          duration: duration,
-          blink: blink
-        });
-        return false;
+      load_handler = function(evt) {
+        var blink, dispersion, duration, timeout_handler;
+        fixations = $('#i-dt').is(':checked');
+        if (fixations) {
+          dispersion = parseInt($('#dispersion_n').val(), 10);
+          duration = parseInt($('#duration_n').val(), 10);
+          blink = parseInt($('#blink_n').val(), 10);
+          opts = {
+            dispersion: dispersion,
+            duration: duration,
+            blink: blink
+          };
+        } else {
+          opts = {};
+        }
+        if (_this.gaze_file) {
+          clearTimeout(load_timer);
+          timeout_handler = function() {
+            return fixfix.load(_this.gaze_file, 'gaze', opts);
+          };
+        }
+        return load_timer = setTimeout(timeout_handler, 500);
+      };
+      $('#i-dt-options input[type="range"], #i-dt-options input[type="number"]').bind('input', function(evt) {
+        if (fixations) {
+          return load_handler(evt);
+        }
       });
+      $('#i-dt').click('input', load_handler);
     }
 
     return FileBrowser;
