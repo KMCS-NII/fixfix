@@ -7,7 +7,8 @@ treedraw = (svg, parent, size, factor, callback) ->
         if level > 0
             level -= 1
             for i in [1..factor]
-                recurse(svg.group(parent), level)
+                subparent = if level == 0 then parent else svg.group(parent)
+                recurse(subparent, level)
                 return unless size
         else
             size -= 1
@@ -166,10 +167,12 @@ class window.FixFix
 
     render_gaze: ->
         $(@gaze_group).empty()
-        tree_factor = 50
+        tree_factor = 20
         
         samples = @data.gaze.samples
-        eyes = ['left', 'right']
+        eyes = []
+        if @data.gaze.opts.separate_eyes
+            eyes = ['left', 'right']
         if @data.gaze.flags.center
             eyes.push('center')
         for eye in eyes
@@ -193,10 +196,24 @@ class window.FixFix
 class window.FileBrowser
     constructor: (fixfix, bb_browser, gaze_browser) ->
         opts = {}
+        fixations = null
         $bb_selected = $()
         $gaze_selected = $()
         load_timer = null
-        fixations = $('#i-dt').is(':checked')
+
+        set_opts = ->
+            fixations = $('#i-dt').is(':checked')
+            if fixations
+                dispersion = parseInt($('#dispersion_n').val(), 10)
+                duration = parseInt($('#duration_n').val(), 10)
+                blink = parseInt($('#blink_n').val(), 10)
+                opts =
+                    dispersion: dispersion
+                    duration: duration
+                    blink: blink
+            else
+                opts = {}
+            opts.separate_eyes = $('#separate-eyes').is(':checked')
 
         $(bb_browser).fileTree {
                 script: 'files/bb'
@@ -217,17 +234,7 @@ class window.FileBrowser
                 fixfix.load(@gaze_file, 'gaze', opts)
 
         load_handler = (evt) =>
-            fixations = $('#i-dt').is(':checked')
-            if fixations
-                dispersion = parseInt($('#dispersion_n').val(), 10)
-                duration = parseInt($('#duration_n').val(), 10)
-                blink = parseInt($('#blink_n').val(), 10)
-                opts =
-                    dispersion: dispersion
-                    duration: duration
-                    blink: blink
-            else
-                opts = {}
+            set_opts()
             if @gaze_file
                 clearTimeout(load_timer)
                 timeout_handler = =>
@@ -237,5 +244,5 @@ class window.FileBrowser
             if fixations
                 load_handler(evt)
         )
-        $('#i-dt').click('input', load_handler)
-
+        $('#i-dt, #separate-eyes').click(load_handler)
+        set_opts()

@@ -9,11 +9,12 @@
     }
     parents = [parent];
     recurse = function(parent, level) {
-      var i, _i;
+      var i, subparent, _i;
       if (level > 0) {
         level -= 1;
         for (i = _i = 1; 1 <= factor ? _i <= factor : _i >= factor; i = 1 <= factor ? ++_i : --_i) {
-          recurse(svg.group(parent), level);
+          subparent = level === 0 ? parent : svg.group(parent);
+          recurse(subparent, level);
           if (!size) {
             return;
           }
@@ -282,9 +283,12 @@
       var eye, eyes, samples, tree_factor, _i, _len,
         _this = this;
       $(this.gaze_group).empty();
-      tree_factor = 50;
+      tree_factor = 20;
       samples = this.data.gaze.samples;
-      eyes = ['left', 'right'];
+      eyes = [];
+      if (this.data.gaze.opts.separate_eyes) {
+        eyes = ['left', 'right'];
+      }
       if (this.data.gaze.flags.center) {
         eyes.push('center');
       }
@@ -325,13 +329,30 @@
 
   window.FileBrowser = (function() {
     function FileBrowser(fixfix, bb_browser, gaze_browser) {
-      var $bb_selected, $gaze_selected, fixations, load_handler, load_timer, opts,
+      var $bb_selected, $gaze_selected, fixations, load_handler, load_timer, opts, set_opts,
         _this = this;
       opts = {};
+      fixations = null;
       $bb_selected = $();
       $gaze_selected = $();
       load_timer = null;
-      fixations = $('#i-dt').is(':checked');
+      set_opts = function() {
+        var blink, dispersion, duration;
+        fixations = $('#i-dt').is(':checked');
+        if (fixations) {
+          dispersion = parseInt($('#dispersion_n').val(), 10);
+          duration = parseInt($('#duration_n').val(), 10);
+          blink = parseInt($('#blink_n').val(), 10);
+          opts = {
+            dispersion: dispersion,
+            duration: duration,
+            blink: blink
+          };
+        } else {
+          opts = {};
+        }
+        return opts.separate_eyes = $('#separate-eyes').is(':checked');
+      };
       $(bb_browser).fileTree({
         script: 'files/bb',
         multiFolder: false
@@ -351,20 +372,8 @@
         return fixfix.load(_this.gaze_file, 'gaze', opts);
       });
       load_handler = function(evt) {
-        var blink, dispersion, duration, timeout_handler;
-        fixations = $('#i-dt').is(':checked');
-        if (fixations) {
-          dispersion = parseInt($('#dispersion_n').val(), 10);
-          duration = parseInt($('#duration_n').val(), 10);
-          blink = parseInt($('#blink_n').val(), 10);
-          opts = {
-            dispersion: dispersion,
-            duration: duration,
-            blink: blink
-          };
-        } else {
-          opts = {};
-        }
+        var timeout_handler;
+        set_opts();
         if (_this.gaze_file) {
           clearTimeout(load_timer);
           timeout_handler = function() {
@@ -378,7 +387,8 @@
           return load_handler(evt);
         }
       });
-      $('#i-dt').click('input', load_handler);
+      $('#i-dt, #separate-eyes').click(load_handler);
+      set_opts();
     }
 
     return FileBrowser;
