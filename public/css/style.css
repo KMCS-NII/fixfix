@@ -49,9 +49,13 @@ html, body {
     stroke: rgba(0, 0, 255, 0.5); }
   #gaze line.center {
     stroke: rgba(0, 0, 0, 0.5);
-    stroke-width: 1; }
+    stroke-width: 1.5px; }
   #gaze line.inter {
     stroke: rgba(0, 0, 0, 0.2); }
+  #gaze line.rs.left, #gaze line.rs.right {
+    stroke: none; }
+  #gaze line.rs.center {
+    stroke: rgba(32, 255, 32, 0.2); }
 
 .ralign {
   text-align: right; }

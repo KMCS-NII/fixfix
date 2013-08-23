@@ -63,8 +63,9 @@
   })();
 
   Sample = (function() {
-    function Sample(time, blink, left, right) {
+    function Sample(time, rs, blink, left, right) {
       this.time = time;
+      this.rs = rs;
       this.blink = blink;
       this.left = left;
       this.right = right;
@@ -102,13 +103,17 @@
     };
 
     Sample.prototype.render_saccade = function(svg, parent, eye, next) {
-      var gaze1, gaze2;
+      var gaze1, gaze2, klass;
       gaze1 = this[eye];
       gaze2 = next[eye];
       if ((gaze1 != null) && (gaze2 != null) && (gaze1.x != null) && (gaze1.y != null) && (gaze2.x != null) && (gaze2.y != null)) {
+        klass = eye;
+        if (this.rs) {
+          klass += ' rs';
+        }
         return this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
           id: eye[0] + this.time + '-' + next.time,
-          "class": eye
+          "class": klass
         });
       }
     };
@@ -226,7 +231,7 @@
             } else if ("validity" in v) {
               return new Gaze(v.x, v.y, v.pupil, v.validity);
             } else if ("time" in v) {
-              return new Sample(v.time, v.blink, v.left, v.right);
+              return new Sample(v.time, v.rs, v.blink, v.left, v.right);
             } else if ("samples" in v) {
               return new Reading(v.samples, v.flags);
             }
@@ -276,7 +281,7 @@
         min = Math.min(min, word.top);
         max = Math.max(max, word.bottom);
       }
-      return this.$svg.height(max + min);
+      return this.svg._svg.setAttribute('height', max + min);
     };
 
     FixFix.prototype.render_gaze = function() {

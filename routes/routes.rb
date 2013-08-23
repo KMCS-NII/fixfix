@@ -38,6 +38,7 @@ module Routes
               reading.find_fixations!(I_DT.new(
                 *params.values_at(:dispersion, :duration, :blink).map(&:to_f)
               ))
+              reading.find_rows!
             end
             reading
           end

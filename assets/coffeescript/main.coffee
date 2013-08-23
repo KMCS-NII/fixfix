@@ -30,7 +30,7 @@ class Gaze
     constructor: (@x, @y, @pupil, @validity) ->
 
 class Sample
-    constructor: (@time, @blink, @left, @right) ->
+    constructor: (@time, @rs, @blink, @left, @right) ->
 
     build_center: ->
         if @left.x? and @left.y? and @right.x? and @right.y?
@@ -65,9 +65,11 @@ class Sample
         gaze1 = this[eye]
         gaze2 = next[eye]
         if gaze1? and gaze2? and gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
+            klass = eye
+            klass += ' rs' if @rs
             this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
                 id: eye[0] + @time + '-' + next.time
-                class: eye
+                class: klass
             })
 
     move_to: (state) ->
@@ -133,7 +135,7 @@ class window.FixFix
                     else if "validity" of v
                         return new Gaze(v.x, v.y, v.pupil, v.validity)
                     else if "time" of v
-                        return new Sample(v.time, v.blink, v.left, v.right)
+                        return new Sample(v.time, v.rs, v.blink, v.left, v.right)
                     else if "samples" of v
                         return new Reading(v.samples, v.flags)
                 return v
@@ -163,7 +165,7 @@ class window.FixFix
         for word in @data.bb
             min = Math.min(min, word.top)
             max = Math.max(max, word.bottom)
-        @$svg.height(max + min)
+        @svg._svg.setAttribute('height', max + min)
 
     render_gaze: ->
         $(@gaze_group).empty()
