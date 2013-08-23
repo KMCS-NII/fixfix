@@ -47,7 +47,7 @@ class Sample
         if gaze? and gaze.x? and gaze.y? and gaze.pupil?
             this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
                 id: eye[0] + @time
-                class: eye
+                class: 'drawn ' + eye
                 'data-orig-x': gaze.x
                 'data-orig-y': gaze.y
                 'data-edit-x': gaze.x + 30
@@ -58,15 +58,15 @@ class Sample
         if @left.x? and @left.y? and @right.x? and @right.y?
             this.iel = svg.line(parent, @left.x, @left.y, @right.x, @right.y, {
                 id: 'lr' + @time
-                class: 'inter'
+                class: 'drawn inter'
             })
 
     render_saccade: (svg, parent, eye, next) ->
         gaze1 = this[eye]
         gaze2 = next[eye]
         if gaze1? and gaze2? and gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
-            klass = eye
-            klass += ' rs' if @rs
+            klass = 'drawn ' + eye
+            klass += ' rs' if @rs?
             this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
                 id: eye[0] + @time + '-' + next.time
                 class: klass
@@ -80,7 +80,7 @@ class Sample
                 el.setAttribute('cy', el.getAttribute('data-' + state + '-y'))
 
 class Reading
-    constructor: (@samples, @flags) ->
+    constructor: (@samples, @flags, @row_bounds) ->
 
 class window.FixFix
     constructor: (svg) ->
@@ -137,7 +137,7 @@ class window.FixFix
                     else if "time" of v
                         return new Sample(v.time, v.rs, v.blink, v.left, v.right)
                     else if "samples" of v
-                        return new Reading(v.samples, v.flags)
+                        return new Reading(v.samples, v.flags, v.row_bounds)
                 return v
         ).then (data) =>
             @data[type] = data

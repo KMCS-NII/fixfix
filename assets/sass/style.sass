@@ -38,14 +38,14 @@ html, body
     text-anchor: middle
     alignment-baseline: middle
 #gaze
-  circle
+  circle.drawn
     &.left
       fill: rgba(255, 0, 0, 0.3)
     &.right
       fill: rgba(0, 0, 255, 0.3)
     &.center
       fill: rgba(0, 0, 0, 0.8)
-  line
+  line.drawn
     stroke-width: 0.5
     &.left
       stroke: rgba(255, 0, 0, 0.5)
@@ -61,6 +61,7 @@ html, body
         stroke: none
       &.center
         stroke: rgba(32, 255, 32, 0.2)
+    &.hidden
 
 .ralign
   text-align: right

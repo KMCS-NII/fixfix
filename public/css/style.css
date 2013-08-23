@@ -35,26 +35,26 @@ html, body {
   text-anchor: middle;
   alignment-baseline: middle; }
 
-#gaze circle.left {
+#gaze circle.drawn.left {
   fill: rgba(255, 0, 0, 0.3); }
-#gaze circle.right {
+#gaze circle.drawn.right {
   fill: rgba(0, 0, 255, 0.3); }
-#gaze circle.center {
+#gaze circle.drawn.center {
   fill: rgba(0, 0, 0, 0.8); }
-#gaze line {
+#gaze line.drawn {
   stroke-width: 0.5; }
-  #gaze line.left {
+  #gaze line.drawn.left {
     stroke: rgba(255, 0, 0, 0.5); }
-  #gaze line.right {
+  #gaze line.drawn.right {
     stroke: rgba(0, 0, 255, 0.5); }
-  #gaze line.center {
+  #gaze line.drawn.center {
     stroke: rgba(0, 0, 0, 0.5);
     stroke-width: 1.5px; }
-  #gaze line.inter {
+  #gaze line.drawn.inter {
     stroke: rgba(0, 0, 0, 0.2); }
-  #gaze line.rs.left, #gaze line.rs.right {
+  #gaze line.drawn.rs.left, #gaze line.drawn.rs.right {
     stroke: none; }
-  #gaze line.rs.center {
+  #gaze line.drawn.rs.center {
     stroke: rgba(32, 255, 32, 0.2); }
 
 .ralign {

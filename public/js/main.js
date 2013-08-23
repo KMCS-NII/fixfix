@@ -84,7 +84,7 @@
       if ((gaze != null) && (gaze.x != null) && (gaze.y != null) && (gaze.pupil != null)) {
         return this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
           id: eye[0] + this.time,
-          "class": eye,
+          "class": 'drawn ' + eye,
           'data-orig-x': gaze.x,
           'data-orig-y': gaze.y,
           'data-edit-x': gaze.x + 30,
@@ -97,7 +97,7 @@
       if ((this.left.x != null) && (this.left.y != null) && (this.right.x != null) && (this.right.y != null)) {
         return this.iel = svg.line(parent, this.left.x, this.left.y, this.right.x, this.right.y, {
           id: 'lr' + this.time,
-          "class": 'inter'
+          "class": 'drawn inter'
         });
       }
     };
@@ -107,8 +107,8 @@
       gaze1 = this[eye];
       gaze2 = next[eye];
       if ((gaze1 != null) && (gaze2 != null) && (gaze1.x != null) && (gaze1.y != null) && (gaze2.x != null) && (gaze2.y != null)) {
-        klass = eye;
-        if (this.rs) {
+        klass = 'drawn ' + eye;
+        if (this.rs != null) {
           klass += ' rs';
         }
         return this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
@@ -140,9 +140,10 @@
   })();
 
   Reading = (function() {
-    function Reading(samples, flags) {
+    function Reading(samples, flags, row_bounds) {
       this.samples = samples;
       this.flags = flags;
+      this.row_bounds = row_bounds;
     }
 
     return Reading;
@@ -233,7 +234,7 @@
             } else if ("time" in v) {
               return new Sample(v.time, v.rs, v.blink, v.left, v.right);
             } else if ("samples" in v) {
-              return new Reading(v.samples, v.flags);
+              return new Reading(v.samples, v.flags, v.row_bounds);
             }
           }
           return v;
