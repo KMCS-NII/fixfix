@@ -285,37 +285,34 @@
       return this.svg._svg.setAttribute('height', max + min);
     };
 
-    FixFix.prototype.render_gaze = function() {
-      var eye, eyes, samples, tree_factor, _i, _len,
+    FixFix.prototype.render_gaze = function(opts) {
+      var eye, samples, tree_factor,
         _this = this;
       $(this.gaze_group).empty();
       tree_factor = 20;
+      if (opts) {
+        this.data.gaze.opts = opts;
+      }
       samples = this.data.gaze.samples;
-      eyes = [];
-      if (this.data.gaze.opts.separate_eyes) {
-        eyes = ['left', 'right'];
-      }
-      if (this.data.gaze.flags.center) {
-        eyes.push('center');
-      }
-      for (_i = 0, _len = eyes.length; _i < _len; _i++) {
-        eye = eyes[_i];
-        treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
-          var sample;
-          sample = samples[index];
-          if (sample != null) {
-            return sample.render(_this.svg, parent, eye);
-          }
-        });
-        if (this.data.gaze.flags.lines) {
-          treedraw(this.svg, this.svg.group(this.gaze_group), samples.length - 1, tree_factor, function(parent, index) {
-            var sample1, sample2;
-            sample1 = samples[index];
-            sample2 = samples[index + 1];
-            if ((sample1 != null) && (sample2 != null) && !sample1.blink) {
-              return sample1.render_saccade(_this.svg, parent, eye, sample2);
+      for (eye in this.data.gaze.opts.eyes) {
+        if (this.data.gaze.opts.eyes[eye]) {
+          treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
+            var sample;
+            sample = samples[index];
+            if (sample != null) {
+              return sample.render(_this.svg, parent, eye);
             }
           });
+          if (this.data.gaze.flags.lines) {
+            treedraw(this.svg, this.svg.group(this.gaze_group), samples.length - 1, tree_factor, function(parent, index) {
+              var sample1, sample2;
+              sample1 = samples[index];
+              sample2 = samples[index + 1];
+              if ((sample1 != null) && (sample2 != null) && !sample1.blink) {
+                return sample1.render_saccade(_this.svg, parent, eye, sample2);
+              }
+            });
+          }
         }
       }
       if (this.data.gaze.flags.lines) {
@@ -335,7 +332,7 @@
 
   window.FileBrowser = (function() {
     function FileBrowser(fixfix, bb_browser, gaze_browser) {
-      var $bb_selected, $gaze_selected, fixations, load_handler, load_timer, opts, set_opts,
+      var $bb_selected, $gaze_selected, fixations, load, load_timer, load_with_delay, opts, set_opts,
         _this = this;
       opts = {};
       fixations = null;
@@ -357,7 +354,11 @@
         } else {
           opts = {};
         }
-        return opts.separate_eyes = $('#separate-eyes').is(':checked');
+        return opts.eyes = {
+          left: $('#left-eye').is(':checked'),
+          center: $('#center-eye').is(':checked'),
+          right: $('#right-eye').is(':checked')
+        };
       };
       $(bb_browser).fileTree({
         script: 'files/bb',
@@ -377,23 +378,28 @@
         ($gaze_selected = $gaze_newly_selected).addClass('selected');
         return fixfix.load(_this.gaze_file, 'gaze', opts);
       });
-      load_handler = function(evt) {
-        var timeout_handler;
-        set_opts();
+      load = function() {
         if (_this.gaze_file) {
-          clearTimeout(load_timer);
-          timeout_handler = function() {
-            return fixfix.load(_this.gaze_file, 'gaze', opts);
-          };
+          set_opts();
+          return fixfix.load(_this.gaze_file, 'gaze', opts);
         }
-        return load_timer = setTimeout(timeout_handler, 500);
+      };
+      load_with_delay = function(evt) {
+        clearTimeout(load_timer);
+        return load_timer = setTimeout(load, 500);
       };
       $('#i-dt-options input[type="range"], #i-dt-options input[type="number"]').bind('input', function(evt) {
         if (fixations) {
-          return load_handler(evt);
+          return load_with_delay();
         }
       });
-      $('#i-dt, #separate-eyes').click(load_handler);
+      $('#i-dt').click(load);
+      $('#eye-options input').click(function(evt) {
+        if (_this.gaze_file) {
+          set_opts();
+          return fixfix.render_gaze(opts);
+        }
+      });
       set_opts();
     }
 

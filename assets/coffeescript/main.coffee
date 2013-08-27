@@ -167,27 +167,27 @@ class window.FixFix
             max = Math.max(max, word.bottom)
         @svg._svg.setAttribute('height', max + min)
 
-    render_gaze: ->
+    render_gaze: (opts) ->
         $(@gaze_group).empty()
         tree_factor = 20
+
+        if opts
+            @data.gaze.opts = opts
         
         samples = @data.gaze.samples
-        eyes = []
-        if @data.gaze.opts.separate_eyes
-            eyes = ['left', 'right']
-        if @data.gaze.flags.center
-            eyes.push('center')
-        for eye in eyes
-            treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
-                sample = samples[index]
-                if sample?
-                    sample.render(@svg, parent, eye)
-            if @data.gaze.flags.lines
-                treedraw @svg, @svg.group(@gaze_group), samples.length - 1, tree_factor, (parent, index) =>
-                    sample1 = samples[index]
-                    sample2 = samples[index + 1]
-                    if sample1? and sample2? and !sample1.blink
-                        sample1.render_saccade(@svg, parent, eye, sample2)
+        # TODO remove flags.center
+        for eye of @data.gaze.opts.eyes
+            if @data.gaze.opts.eyes[eye]
+                treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
+                    sample = samples[index]
+                    if sample?
+                        sample.render(@svg, parent, eye)
+                if @data.gaze.flags.lines
+                    treedraw @svg, @svg.group(@gaze_group), samples.length - 1, tree_factor, (parent, index) =>
+                        sample1 = samples[index]
+                        sample2 = samples[index + 1]
+                        if sample1? and sample2? and !sample1.blink
+                            sample1.render_saccade(@svg, parent, eye, sample2)
         if @data.gaze.flags.lines
             treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
                 sample = samples[index]
@@ -215,7 +215,11 @@ class window.FileBrowser
                     blink: blink
             else
                 opts = {}
-            opts.separate_eyes = $('#separate-eyes').is(':checked')
+
+            opts.eyes =
+                left: $('#left-eye').is(':checked')
+                center: $('#center-eye').is(':checked')
+                right: $('#right-eye').is(':checked')
 
         $(bb_browser).fileTree {
                 script: 'files/bb'
@@ -235,16 +239,26 @@ class window.FileBrowser
                 ($gaze_selected = $gaze_newly_selected).addClass('selected')
                 fixfix.load(@gaze_file, 'gaze', opts)
 
-        load_handler = (evt) =>
-            set_opts()
+        load = =>
             if @gaze_file
-                clearTimeout(load_timer)
-                timeout_handler = =>
-                    fixfix.load(@gaze_file, 'gaze', opts)
-            load_timer = setTimeout(timeout_handler, 500)
+                set_opts()
+                fixfix.load(@gaze_file, 'gaze', opts)
+
+        load_with_delay = (evt) =>
+            clearTimeout(load_timer)
+            load_timer = setTimeout(load, 500)
+
         $('#i-dt-options input[type="range"], #i-dt-options input[type="number"]').bind('input', (evt) ->
             if fixations
-                load_handler(evt)
+                load_with_delay()
         )
-        $('#i-dt, #separate-eyes').click(load_handler)
+
+        $('#i-dt').click(load)
+
+        # TODO don't redraw things that are already drawn
+        $('#eye-options input').click (evt) =>
+            if @gaze_file
+                set_opts()
+                fixfix.render_gaze(opts)
+
         set_opts()
