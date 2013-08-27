@@ -9,11 +9,12 @@
     }
     parents = [parent];
     recurse = function(parent, level) {
-      var i, _i;
+      var i, subparent, _i;
       if (level > 0) {
         level -= 1;
         for (i = _i = 1; 1 <= factor ? _i <= factor : _i >= factor; i = 1 <= factor ? ++_i : --_i) {
-          recurse(svg.group(parent), level);
+          subparent = level === 0 ? parent : svg.group(parent);
+          recurse(subparent, level);
           if (!size) {
             return;
           }
@@ -62,8 +63,9 @@
   })();
 
   Sample = (function() {
-    function Sample(time, blink, left, right) {
+    function Sample(time, rs, blink, left, right) {
       this.time = time;
+      this.rs = rs;
       this.blink = blink;
       this.left = left;
       this.right = right;
@@ -82,7 +84,7 @@
       if ((gaze != null) && (gaze.x != null) && (gaze.y != null) && (gaze.pupil != null)) {
         return this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
           id: eye[0] + this.time,
-          "class": eye,
+          "class": 'drawn ' + eye,
           'data-orig-x': gaze.x,
           'data-orig-y': gaze.y,
           'data-edit-x': gaze.x + 30,
@@ -95,19 +97,23 @@
       if ((this.left.x != null) && (this.left.y != null) && (this.right.x != null) && (this.right.y != null)) {
         return this.iel = svg.line(parent, this.left.x, this.left.y, this.right.x, this.right.y, {
           id: 'lr' + this.time,
-          "class": 'inter'
+          "class": 'drawn inter'
         });
       }
     };
 
     Sample.prototype.render_saccade = function(svg, parent, eye, next) {
-      var gaze1, gaze2;
+      var gaze1, gaze2, klass;
       gaze1 = this[eye];
       gaze2 = next[eye];
       if ((gaze1 != null) && (gaze2 != null) && (gaze1.x != null) && (gaze1.y != null) && (gaze2.x != null) && (gaze2.y != null)) {
+        klass = 'drawn ' + eye;
+        if (this.rs != null) {
+          klass += ' rs';
+        }
         return this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
           id: eye[0] + this.time + '-' + next.time,
-          "class": eye
+          "class": klass
         });
       }
     };
@@ -134,9 +140,10 @@
   })();
 
   Reading = (function() {
-    function Reading(samples, flags) {
+    function Reading(samples, flags, row_bounds) {
       this.samples = samples;
       this.flags = flags;
+      this.row_bounds = row_bounds;
     }
 
     return Reading;
@@ -225,9 +232,9 @@
             } else if ("validity" in v) {
               return new Gaze(v.x, v.y, v.pupil, v.validity);
             } else if ("time" in v) {
-              return new Sample(v.time, v.blink, v.left, v.right);
+              return new Sample(v.time, v.rs, v.blink, v.left, v.right);
             } else if ("samples" in v) {
-              return new Reading(v.samples, v.flags);
+              return new Reading(v.samples, v.flags, v.row_bounds);
             }
           }
           return v;
@@ -275,37 +282,37 @@
         min = Math.min(min, word.top);
         max = Math.max(max, word.bottom);
       }
-      return this.$svg.height(max + min);
+      return this.svg._svg.setAttribute('height', max + min);
     };
 
-    FixFix.prototype.render_gaze = function() {
-      var eye, eyes, samples, tree_factor, _i, _len,
+    FixFix.prototype.render_gaze = function(opts) {
+      var eye, samples, tree_factor,
         _this = this;
       $(this.gaze_group).empty();
-      tree_factor = 50;
-      samples = this.data.gaze.samples;
-      eyes = ['left', 'right'];
-      if (this.data.gaze.flags.center) {
-        eyes.push('center');
+      tree_factor = 20;
+      if (opts) {
+        this.data.gaze.opts = opts;
       }
-      for (_i = 0, _len = eyes.length; _i < _len; _i++) {
-        eye = eyes[_i];
-        treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
-          var sample;
-          sample = samples[index];
-          if (sample != null) {
-            return sample.render(_this.svg, parent, eye);
-          }
-        });
-        if (this.data.gaze.flags.lines) {
-          treedraw(this.svg, this.svg.group(this.gaze_group), samples.length - 1, tree_factor, function(parent, index) {
-            var sample1, sample2;
-            sample1 = samples[index];
-            sample2 = samples[index + 1];
-            if ((sample1 != null) && (sample2 != null) && !sample1.blink) {
-              return sample1.render_saccade(_this.svg, parent, eye, sample2);
+      samples = this.data.gaze.samples;
+      for (eye in this.data.gaze.opts.eyes) {
+        if (this.data.gaze.opts.eyes[eye]) {
+          treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
+            var sample;
+            sample = samples[index];
+            if (sample != null) {
+              return sample.render(_this.svg, parent, eye);
             }
           });
+          if (this.data.gaze.flags.lines) {
+            treedraw(this.svg, this.svg.group(this.gaze_group), samples.length - 1, tree_factor, function(parent, index) {
+              var sample1, sample2;
+              sample1 = samples[index];
+              sample2 = samples[index + 1];
+              if ((sample1 != null) && (sample2 != null) && !sample1.blink) {
+                return sample1.render_saccade(_this.svg, parent, eye, sample2);
+              }
+            });
+          }
         }
       }
       if (this.data.gaze.flags.lines) {
@@ -325,13 +332,34 @@
 
   window.FileBrowser = (function() {
     function FileBrowser(fixfix, bb_browser, gaze_browser) {
-      var $bb_selected, $gaze_selected, fixations, load_handler, load_timer, opts,
+      var $bb_selected, $gaze_selected, fixations, load, load_timer, load_with_delay, opts, set_opts,
         _this = this;
       opts = {};
+      fixations = null;
       $bb_selected = $();
       $gaze_selected = $();
       load_timer = null;
-      fixations = $('#i-dt').is(':checked');
+      set_opts = function() {
+        var blink, dispersion, duration;
+        fixations = $('#i-dt').is(':checked');
+        if (fixations) {
+          dispersion = parseInt($('#dispersion_n').val(), 10);
+          duration = parseInt($('#duration_n').val(), 10);
+          blink = parseInt($('#blink_n').val(), 10);
+          opts = {
+            dispersion: dispersion,
+            duration: duration,
+            blink: blink
+          };
+        } else {
+          opts = {};
+        }
+        return opts.eyes = {
+          left: $('#left-eye').is(':checked'),
+          center: $('#center-eye').is(':checked'),
+          right: $('#right-eye').is(':checked')
+        };
+      };
       $(bb_browser).fileTree({
         script: 'files/bb',
         multiFolder: false
@@ -350,35 +378,29 @@
         ($gaze_selected = $gaze_newly_selected).addClass('selected');
         return fixfix.load(_this.gaze_file, 'gaze', opts);
       });
-      load_handler = function(evt) {
-        var blink, dispersion, duration, timeout_handler;
-        fixations = $('#i-dt').is(':checked');
-        if (fixations) {
-          dispersion = parseInt($('#dispersion_n').val(), 10);
-          duration = parseInt($('#duration_n').val(), 10);
-          blink = parseInt($('#blink_n').val(), 10);
-          opts = {
-            dispersion: dispersion,
-            duration: duration,
-            blink: blink
-          };
-        } else {
-          opts = {};
-        }
+      load = function() {
         if (_this.gaze_file) {
-          clearTimeout(load_timer);
-          timeout_handler = function() {
-            return fixfix.load(_this.gaze_file, 'gaze', opts);
-          };
+          set_opts();
+          return fixfix.load(_this.gaze_file, 'gaze', opts);
         }
-        return load_timer = setTimeout(timeout_handler, 500);
+      };
+      load_with_delay = function(evt) {
+        clearTimeout(load_timer);
+        return load_timer = setTimeout(load, 500);
       };
       $('#i-dt-options input[type="range"], #i-dt-options input[type="number"]').bind('input', function(evt) {
         if (fixations) {
-          return load_handler(evt);
+          return load_with_delay();
         }
       });
-      $('#i-dt').click('input', load_handler);
+      $('#i-dt').click(load);
+      $('#eye-options input').click(function(evt) {
+        if (_this.gaze_file) {
+          set_opts();
+          return fixfix.render_gaze(opts);
+        }
+      });
+      set_opts();
     }
 
     return FileBrowser;

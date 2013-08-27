@@ -7,7 +7,8 @@ treedraw = (svg, parent, size, factor, callback) ->
         if level > 0
             level -= 1
             for i in [1..factor]
-                recurse(svg.group(parent), level)
+                subparent = if level == 0 then parent else svg.group(parent)
+                recurse(subparent, level)
                 return unless size
         else
             size -= 1
@@ -29,7 +30,7 @@ class Gaze
     constructor: (@x, @y, @pupil, @validity) ->
 
 class Sample
-    constructor: (@time, @blink, @left, @right) ->
+    constructor: (@time, @rs, @blink, @left, @right) ->
 
     build_center: ->
         if @left.x? and @left.y? and @right.x? and @right.y?
@@ -46,7 +47,7 @@ class Sample
         if gaze? and gaze.x? and gaze.y? and gaze.pupil?
             this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
                 id: eye[0] + @time
-                class: eye
+                class: 'drawn ' + eye
                 'data-orig-x': gaze.x
                 'data-orig-y': gaze.y
                 'data-edit-x': gaze.x + 30
@@ -57,16 +58,18 @@ class Sample
         if @left.x? and @left.y? and @right.x? and @right.y?
             this.iel = svg.line(parent, @left.x, @left.y, @right.x, @right.y, {
                 id: 'lr' + @time
-                class: 'inter'
+                class: 'drawn inter'
             })
 
     render_saccade: (svg, parent, eye, next) ->
         gaze1 = this[eye]
         gaze2 = next[eye]
         if gaze1? and gaze2? and gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
+            klass = 'drawn ' + eye
+            klass += ' rs' if @rs?
             this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
                 id: eye[0] + @time + '-' + next.time
-                class: eye
+                class: klass
             })
 
     move_to: (state) ->
@@ -77,7 +80,7 @@ class Sample
                 el.setAttribute('cy', el.getAttribute('data-' + state + '-y'))
 
 class Reading
-    constructor: (@samples, @flags) ->
+    constructor: (@samples, @flags, @row_bounds) ->
 
 class window.FixFix
     constructor: (svg) ->
@@ -132,9 +135,9 @@ class window.FixFix
                     else if "validity" of v
                         return new Gaze(v.x, v.y, v.pupil, v.validity)
                     else if "time" of v
-                        return new Sample(v.time, v.blink, v.left, v.right)
+                        return new Sample(v.time, v.rs, v.blink, v.left, v.right)
                     else if "samples" of v
-                        return new Reading(v.samples, v.flags)
+                        return new Reading(v.samples, v.flags, v.row_bounds)
                 return v
         ).then (data) =>
             @data[type] = data
@@ -162,27 +165,29 @@ class window.FixFix
         for word in @data.bb
             min = Math.min(min, word.top)
             max = Math.max(max, word.bottom)
-        @$svg.height(max + min)
+        @svg._svg.setAttribute('height', max + min)
 
-    render_gaze: ->
+    render_gaze: (opts) ->
         $(@gaze_group).empty()
-        tree_factor = 50
+        tree_factor = 20
+
+        if opts
+            @data.gaze.opts = opts
         
         samples = @data.gaze.samples
-        eyes = ['left', 'right']
-        if @data.gaze.flags.center
-            eyes.push('center')
-        for eye in eyes
-            treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
-                sample = samples[index]
-                if sample?
-                    sample.render(@svg, parent, eye)
-            if @data.gaze.flags.lines
-                treedraw @svg, @svg.group(@gaze_group), samples.length - 1, tree_factor, (parent, index) =>
-                    sample1 = samples[index]
-                    sample2 = samples[index + 1]
-                    if sample1? and sample2? and !sample1.blink
-                        sample1.render_saccade(@svg, parent, eye, sample2)
+        # TODO remove flags.center
+        for eye of @data.gaze.opts.eyes
+            if @data.gaze.opts.eyes[eye]
+                treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
+                    sample = samples[index]
+                    if sample?
+                        sample.render(@svg, parent, eye)
+                if @data.gaze.flags.lines
+                    treedraw @svg, @svg.group(@gaze_group), samples.length - 1, tree_factor, (parent, index) =>
+                        sample1 = samples[index]
+                        sample2 = samples[index + 1]
+                        if sample1? and sample2? and !sample1.blink
+                            sample1.render_saccade(@svg, parent, eye, sample2)
         if @data.gaze.flags.lines
             treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
                 sample = samples[index]
@@ -193,10 +198,28 @@ class window.FixFix
 class window.FileBrowser
     constructor: (fixfix, bb_browser, gaze_browser) ->
         opts = {}
+        fixations = null
         $bb_selected = $()
         $gaze_selected = $()
         load_timer = null
-        fixations = $('#i-dt').is(':checked')
+
+        set_opts = ->
+            fixations = $('#i-dt').is(':checked')
+            if fixations
+                dispersion = parseInt($('#dispersion_n').val(), 10)
+                duration = parseInt($('#duration_n').val(), 10)
+                blink = parseInt($('#blink_n').val(), 10)
+                opts =
+                    dispersion: dispersion
+                    duration: duration
+                    blink: blink
+            else
+                opts = {}
+
+            opts.eyes =
+                left: $('#left-eye').is(':checked')
+                center: $('#center-eye').is(':checked')
+                right: $('#right-eye').is(':checked')
 
         $(bb_browser).fileTree {
                 script: 'files/bb'
@@ -216,26 +239,26 @@ class window.FileBrowser
                 ($gaze_selected = $gaze_newly_selected).addClass('selected')
                 fixfix.load(@gaze_file, 'gaze', opts)
 
-        load_handler = (evt) =>
-            fixations = $('#i-dt').is(':checked')
-            if fixations
-                dispersion = parseInt($('#dispersion_n').val(), 10)
-                duration = parseInt($('#duration_n').val(), 10)
-                blink = parseInt($('#blink_n').val(), 10)
-                opts =
-                    dispersion: dispersion
-                    duration: duration
-                    blink: blink
-            else
-                opts = {}
+        load = =>
             if @gaze_file
-                clearTimeout(load_timer)
-                timeout_handler = =>
-                    fixfix.load(@gaze_file, 'gaze', opts)
-            load_timer = setTimeout(timeout_handler, 500)
+                set_opts()
+                fixfix.load(@gaze_file, 'gaze', opts)
+
+        load_with_delay = (evt) =>
+            clearTimeout(load_timer)
+            load_timer = setTimeout(load, 500)
+
         $('#i-dt-options input[type="range"], #i-dt-options input[type="number"]').bind('input', (evt) ->
             if fixations
-                load_handler(evt)
+                load_with_delay()
         )
-        $('#i-dt').click('input', load_handler)
 
+        $('#i-dt').click(load)
+
+        # TODO don't redraw things that are already drawn
+        $('#eye-options input').click (evt) =>
+            if @gaze_file
+                set_opts()
+                fixfix.render_gaze(opts)
+
+        set_opts()

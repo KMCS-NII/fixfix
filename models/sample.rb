@@ -1,7 +1,7 @@
 require 'json'
 
 class Sample
-  attr_accessor :break, :left, :right, :time, :blink
+  attr_accessor :break, :left, :right, :time, :blink, :rs
 
   VALIDITY_LIMIT = 4
 
@@ -23,6 +23,7 @@ class Sample
     rep[:left] = @left if @left
     rep[:right] = @right if @right
     rep[:blink] = @blink if @blink
+    rep[:rs] = @rs if @rs
     rep.to_json(*a)
   end
 end
