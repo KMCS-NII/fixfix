@@ -17,6 +17,11 @@ html, body {
   #file_browser input[type="text"] {
     width: 50px; }
 
+#eye-options label[for="left-eye"] {
+  color: #cc0000; }
+#eye-options label[for="right-eye"] {
+  color: blue; }
+
 .browser_container {
   height: 200px; }
 
