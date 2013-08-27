@@ -1,6 +1,20 @@
 (function() {
-  var Gaze, Reading, Sample, Word, treedraw,
+  var Gaze, Reading, Sample, Word, ZOOM_SENSITIVITY, event_point, set_CTM, treedraw,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+  ZOOM_SENSITIVITY = 0.2;
+
+  event_point = function(svg, evt) {
+    var p;
+    p = svg.createSVGPoint();
+    p.x = evt.clientX;
+    p.y = evt.clientY;
+    return p;
+  };
+
+  set_CTM = function(element, matrix) {
+    return element.transform.baseVal.initialize(element.ownerSVGElement.createSVGTransformFromMatrix(matrix));
+  };
 
   treedraw = function(svg, parent, size, factor, callback) {
     var parents, recurse;
@@ -153,68 +167,18 @@
   window.FixFix = (function() {
     function FixFix(svg) {
       this.init = __bind(this.init, this);
-      var shifted,
-        _this = this;
       this.$svg = $(svg);
       this.data = {};
       $(this.$svg).svg({
         onLoad: this.init
       });
-      $('input[type="range"]').change(function(evt) {
-        var $number, $target;
-        $target = $(evt.target);
-        $number = $target.next('input[type="number"]');
-        if (($target != null) && $number.val() !== $target.val()) {
-          return $number.val($target.val());
-        }
-      });
-      $('input[type="number"]').change(function(evt) {
-        var $number, $target;
-        $target = $(evt.target);
-        $number = $target.prev('input[type="range"]');
-        if (($number != null) && $number.val() !== $target.val()) {
-          return $number.val($target.val());
-        }
-      });
-      shifted = false;
-      $(document).keydown(function(evt) {
-        var sample, _i, _len, _ref;
-        if (!(_this.data.gaze && evt.keyCode === 16)) {
-          return;
-        }
-        if (evt.shiftKey && !shifted) {
-          _ref = _this.data.gaze.samples;
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            sample = _ref[_i];
-            if (sample) {
-              sample.move_to('edit');
-            }
-          }
-          return shifted = true;
-        }
-      });
-      $(document).keyup(function(evt) {
-        var sample, _i, _len, _ref;
-        if (!(_this.data.gaze && evt.keyCode === 16)) {
-          return;
-        }
-        if (!evt.shiftKey && shifted) {
-          _ref = _this.data.gaze.samples;
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            sample = _ref[_i];
-            if (sample) {
-              sample.move_to('orig');
-            }
-          }
-          return shifted = false;
-        }
-      });
     }
 
     FixFix.prototype.init = function(svg) {
       this.svg = svg;
-      this.bb_group = this.svg.group('bb');
-      return this.gaze_group = this.svg.group('gaze');
+      this.root = this.svg.group();
+      this.bb_group = this.svg.group(this.root, 'bb');
+      return this.gaze_group = this.svg.group(this.root, 'gaze');
     };
 
     FixFix.prototype.load = function(file, type, opts) {
@@ -332,7 +296,7 @@
 
   window.FileBrowser = (function() {
     function FileBrowser(fixfix, bb_browser, gaze_browser) {
-      var $bb_selected, $gaze_selected, fixations, load, load_timer, load_with_delay, opts, set_opts,
+      var $bb_selected, $gaze_selected, fixations, load, load_timer, load_with_delay, opts, set_opts, svg,
         _this = this;
       opts = {};
       fixations = null;
@@ -393,11 +357,39 @@
           return load_with_delay();
         }
       });
+      $('input[type="range"]').change(function(evt) {
+        var $number, $target;
+        $target = $(evt.target);
+        $number = $target.next('input[type="number"]');
+        if (($target != null) && $number.val() !== $target.val()) {
+          return $number.val($target.val());
+        }
+      });
+      $('input[type="number"]').change(function(evt) {
+        var $number, $target;
+        $target = $(evt.target);
+        $number = $target.prev('input[type="range"]');
+        if (($number != null) && $number.val() !== $target.val()) {
+          return $number.val($target.val());
+        }
+      });
       $('#i-dt').click(load);
       $('#eye-options input').click(function(evt) {
         if (_this.gaze_file) {
           set_opts();
           return fixfix.render_gaze(opts);
+        }
+      });
+      svg = fixfix.svg._svg;
+      $(svg).mousewheel(function(evt, delta, dx, dy) {
+        var ctm, k, p, z;
+        if (evt.metaKey || evt.ctrlKey) {
+          ctm = fixfix.root.getCTM();
+          z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360);
+          p = event_point(svg, evt).matrixTransform(ctm.inverse());
+          k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
+          set_CTM(fixfix.root, ctm.multiply(k));
+          return false;
         }
       });
       set_opts();

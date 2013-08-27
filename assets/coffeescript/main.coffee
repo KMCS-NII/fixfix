@@ -1,5 +1,17 @@
 # vim: ts=4:sts=4:sw=4
 
+ZOOM_SENSITIVITY = 0.2
+
+event_point = (svg, evt) ->
+    p = svg.createSVGPoint()
+    p.x = evt.clientX
+    p.y = evt.clientY
+    p
+
+set_CTM = (element, matrix) ->
+    element.transform.baseVal.initialize(
+        element.ownerSVGElement.createSVGTransformFromMatrix(matrix))
+
 treedraw = (svg, parent, size, factor, callback) ->
     return unless size
     parents = [parent]
@@ -88,38 +100,11 @@ class window.FixFix
         @data = {}
         $(@$svg).svg(onLoad: @init)
 
-        # sliders
-        $('input[type="range"]').change (evt) ->
-            $target = $(evt.target)
-            $number = $target.next('input[type="number"]')
-            if $target? && $number.val() != $target.val()
-                $number.val($target.val())
-        $('input[type="number"]').change (evt) ->
-            $target = $(evt.target)
-            $number = $target.prev('input[type="range"]')
-            if $number? && $number.val() != $target.val()
-                $number.val($target.val())
-
-        # toggle edit/orig position on Shift
-        shifted = false
-        $(document).keydown (evt) =>
-            return unless @data.gaze and evt.keyCode == 16
-            if evt.shiftKey and not shifted
-                for sample in @data.gaze.samples
-                    if sample
-                        sample.move_to('edit')
-                shifted = true
-        $(document).keyup (evt) =>
-            return unless @data.gaze and evt.keyCode == 16
-            if not evt.shiftKey and shifted
-                for sample in @data.gaze.samples
-                    if sample
-                        sample.move_to('orig')
-                shifted = false
 
     init: (@svg) =>
-        @bb_group = @svg.group('bb')
-        @gaze_group = @svg.group('gaze')
+        @root = @svg.group()
+        @bb_group = @svg.group(@root, 'bb')
+        @gaze_group = @svg.group(@root, 'gaze')
 
     load: (file, type, opts) ->
         opts = opts || {}
@@ -252,6 +237,16 @@ class window.FileBrowser
             if fixations
                 load_with_delay()
         )
+        $('input[type="range"]').change (evt) ->
+            $target = $(evt.target)
+            $number = $target.next('input[type="number"]')
+            if $target? && $number.val() != $target.val()
+                $number.val($target.val())
+        $('input[type="number"]').change (evt) ->
+            $target = $(evt.target)
+            $number = $target.prev('input[type="range"]')
+            if $number? && $number.val() != $target.val()
+                $number.val($target.val())
 
         $('#i-dt').click(load)
 
@@ -260,5 +255,16 @@ class window.FileBrowser
             if @gaze_file
                 set_opts()
                 fixfix.render_gaze(opts)
+
+        svg = fixfix.svg._svg
+        $(svg).mousewheel (evt, delta, dx, dy) ->
+            if evt.metaKey || evt.ctrlKey
+                # zoom svg
+                ctm = fixfix.root.getCTM()
+                z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360)
+                p = event_point(svg, evt).matrixTransform(ctm.inverse())
+                k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y)
+                set_CTM(fixfix.root, ctm.multiply(k))
+                return false
 
         set_opts()

@@ -1,6 +1,7 @@
 html, body {
   margin: 0;
-  padding: 0; }
+  padding: 0;
+  font: 15px arial, sans-serif; }
 
 #file_browser {
   position: fixed;
@@ -13,8 +14,9 @@ html, body {
   #file_browser > *:last-child {
     padding-bottom: 5px; }
   #file_browser input[type="range"] {
-    width: 125px; }
-  #file_browser input[type="text"] {
+    width: 130px;
+    margin: 0; }
+  #file_browser input[type="number"] {
     width: 50px; }
 
 #eye-options label[for="left-eye"] {
