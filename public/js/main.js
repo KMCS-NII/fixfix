@@ -132,23 +132,6 @@
       }
     };
 
-    Sample.prototype.move_to = function(state) {
-      var el, eye, _i, _len, _ref, _results;
-      _ref = ['left', 'right'];
-      _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        eye = _ref[_i];
-        el = this[eye].el;
-        if (el) {
-          el.setAttribute('cx', el.getAttribute('data-' + state + '-x'));
-          _results.push(el.setAttribute('cy', el.getAttribute('data-' + state + '-y')));
-        } else {
-          _results.push(void 0);
-        }
-      }
-      return _results;
-    };
-
     return Sample;
 
   })();

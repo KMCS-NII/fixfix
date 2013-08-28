@@ -84,13 +84,6 @@ class Sample
                 class: klass
             })
 
-    move_to: (state) ->
-        for eye in ['left', 'right']
-            el = this[eye].el
-            if el
-                el.setAttribute('cx', el.getAttribute('data-' + state + '-x'))
-                el.setAttribute('cy', el.getAttribute('data-' + state + '-y'))
-
 class Reading
     constructor: (@samples, @flags, @row_bounds) ->
 
