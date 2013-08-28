@@ -2,6 +2,8 @@ require 'sinatra/base'
 require 'json'
 require 'zlib'
 
+VERSION = [0, 0, 0]
+
 def ensure_sandboxed(file, dir)
   file = File.expand_path(file)
   dir = File.expand_path(dir)
@@ -33,17 +35,24 @@ module Routes
           when "bb"
             Word.load(file)
           when "gaze"
+            reading = nil
+
             if params[:cache] && File.exist?(file + '.edit')
               # for normal editing, just grab the latest version
-              Zlib::GzipReader.open(file + '.edit') { |f| Marshal.load(f) }
-            else
+              version, reading = *Zlib::GzipReader.open(file + '.edit') { |f| Marshal.load(f) }
+              reading = nil if version != VERSION
+            end
+            unless reading
               # for first display, try to load the original from cache,
               # and cache if we can't
               if File.exist?(file + '.orig')
-                reading = Zlib::GzipReader.open(file + '.orig') { |f| Marshal.load(f) }
-              else
+                version, reading = *Zlib::GzipReader.open(file + '.orig') { |f| Marshal.load(f) }
+                reading = nil if version != VERSION
+              end
+              unless reading
                 reading = Reading.new(TobiiParser.new, file)
-                Zlib::GzipWriter.open(file + '.orig') { |f| Marshal.dump(reading, f) }
+                payload = [VERSION, reading]
+                Zlib::GzipWriter.open(file + '.orig') { |f| Marshal.dump(payload, f) }
               end
 
               # then find fixations if we needed them, and cache those
@@ -53,13 +62,13 @@ module Routes
                 reading.flags[:fixation] = Hash[%i(dispersion duration blink).map { |key|
                   [key, params[key].to_f]
                 }]
-                $stderr.puts params.inspect
                 reading.find_fixations!
                 reading.find_rows!
               end
-              Zlib::GzipWriter.open(file + '.edit') { |f| Marshal.dump(reading, f) }
-              reading
+              payload = [VERSION, reading]
+              Zlib::GzipWriter.open(file + '.edit') { |f| Marshal.dump(payload, f) }
             end
+            reading
           end
 
       content_type :json
