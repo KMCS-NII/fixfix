@@ -12,7 +12,9 @@ class TobiiParser
   end
 
   def flags
-    {}
+    {
+      center: true
+    }
   end
 
   private

@@ -185,7 +185,7 @@
       var _this = this;
       opts = opts || {};
       opts.file = file;
-      return ($.ajax({
+      ($.ajax({
         url: "" + type + ".json",
         dataType: 'json',
         data: opts,
@@ -209,7 +209,8 @@
         _this.data[type].opts = opts;
         switch (type) {
           case 'bb':
-            return _this.render_bb();
+            _this.render_bb();
+            break;
           case 'gaze':
             if (_this.data.gaze.flags.center) {
               _ref = _this.data.gaze.samples;
@@ -218,9 +219,11 @@
                 sample.build_center();
               }
             }
-            return _this.render_gaze();
+            _this.render_gaze();
         }
+        return _this.$svg.trigger('loaded');
       });
+      return delete opts.cache;
     };
 
     FixFix.prototype.render_bb = function() {
@@ -340,6 +343,7 @@
         _this.gaze_file = gaze_file;
         $gaze_selected.removeClass('selected');
         ($gaze_selected = $gaze_newly_selected).addClass('selected');
+        opts.cache = true;
         return fixfix.load(_this.gaze_file, 'gaze', opts);
       });
       load = function() {
@@ -390,6 +394,19 @@
           k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
           set_CTM(fixfix.root, ctm.multiply(k));
           return false;
+        }
+      });
+      fixfix.$svg.on('loaded', function(evt) {
+        var fixation_opts, key, value, _results;
+        fixation_opts = fixfix.data.gaze.flags.fixation;
+        $('#i-dt').prop('checked', !!fixation_opts);
+        if (fixation_opts) {
+          _results = [];
+          for (key in fixation_opts) {
+            value = fixation_opts[key];
+            _results.push($("#" + key + ", #" + key + "-n").val(value));
+          }
+          return _results;
         }
       });
       set_opts();

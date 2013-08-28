@@ -126,7 +126,7 @@ class window.FixFix
                 return v
         ).then (data) =>
             @data[type] = data
-            @data[type].opts = opts # TODO return them from AJAX
+            @data[type].opts = opts
             switch type
                 when 'bb' then @render_bb()
                 when 'gaze'
@@ -134,6 +134,8 @@ class window.FixFix
                         for sample in @data.gaze.samples
                             sample.build_center()
                     @render_gaze()
+            @$svg.trigger('loaded')
+        delete opts.cache
 
     render_bb: ->
         $(@bb_group).empty()
@@ -222,6 +224,7 @@ class window.FileBrowser
             (@gaze_file, $gaze_newly_selected) =>
                 $gaze_selected.removeClass('selected')
                 ($gaze_selected = $gaze_newly_selected).addClass('selected')
+                opts.cache = true
                 fixfix.load(@gaze_file, 'gaze', opts)
 
         load = =>
@@ -266,5 +269,13 @@ class window.FileBrowser
                 k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y)
                 set_CTM(fixfix.root, ctm.multiply(k))
                 return false
+
+        fixfix.$svg.on('loaded', (evt) ->
+            fixation_opts = fixfix.data.gaze.flags.fixation
+            $('#i-dt').prop('checked', !!fixation_opts)
+            if fixation_opts
+                for key, value of fixation_opts
+                    $("##{key}, ##{key}-n").val(value)
+        )
 
         set_opts()
