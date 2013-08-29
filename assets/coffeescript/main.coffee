@@ -8,6 +8,11 @@ event_point = (svg, evt) ->
     p.y = evt.clientY
     p
 
+move_point = (element, x_attr, y_attr, point) ->
+    if element
+        element.setAttribute(x_attr, point.x)
+        element.setAttribute(y_attr, point.y)
+
 set_CTM = (element, matrix) ->
     element.transform.baseVal.initialize(
         element.ownerSVGElement.createSVGTransformFromMatrix(matrix))
@@ -53,34 +58,33 @@ class Sample
                 if @left.validity > @right.validity then @left.validity else @right.validity
             )
 
-    render: (svg, parent, eye) ->
+    render: (svg, parent, eye, index) ->
         gaze = this[eye]
-        @el = []
         if gaze? and gaze.x? and gaze.y? and gaze.pupil?
             this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
-                id: eye[0] + @time
+                id: eye[0] + index
+                'data-index': index
+                'data-eye': eye
                 class: 'drawn ' + eye
-                'data-orig-x': gaze.x
-                'data-orig-y': gaze.y
-                'data-edit-x': gaze.x + 30
-                'data-edit-y': gaze.y + 30
             })
 
-    render_intereye: (svg, parent) ->
+    render_intereye: (svg, parent, index) ->
         if @left.x? and @left.y? and @right.x? and @right.y?
             this.iel = svg.line(parent, @left.x, @left.y, @right.x, @right.y, {
-                id: 'lr' + @time
+                id: 'lr' + index
+                'data-index': index
                 class: 'drawn inter'
             })
 
-    render_saccade: (svg, parent, eye, next) ->
+    render_saccade: (svg, parent, eye, next, index) ->
         gaze1 = this[eye]
         gaze2 = next[eye]
         if gaze1? and gaze2? and gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
             klass = 'drawn ' + eye
             klass += ' rs' if @rs?
             this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
-                id: eye[0] + @time + '-' + next.time
+                id: 's' + eye[0] + index
+                'data-index': index
                 class: klass
             })
 
@@ -98,6 +102,86 @@ class window.FixFix
         @root = @svg.group()
         @bb_group = @svg.group(@root, 'bb')
         @gaze_group = @svg.group(@root, 'gaze')
+
+        svg = @svg._svg
+
+        $(svg).mousewheel (evt, delta, dx, dy) =>
+            if evt.metaKey || evt.ctrlKey
+                # zoom svg
+                ctm = @root.getCTM()
+                z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360)
+                p = event_point(svg, evt).matrixTransform(ctm.inverse())
+                k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y)
+                set_CTM(@root, ctm.multiply(k))
+                return false
+
+        $(svg).on('mousedown', 'circle', (evt) =>
+            # possibly initiate drag/pan
+            unctm = evt.target.getTransformToElement(svg).inverse()
+            $target = $(evt.target)
+            @mousedown =
+                index: $target.data('index')
+                target: evt.target
+                eye: $target.data('eye')
+                origin: event_point(svg, evt).matrixTransform(unctm)
+                unctm: unctm
+            @mousedrag = false
+        )
+
+        $(svg).mousemove((evt) =>
+            if @mousedown
+                @mousedrag = true
+                # prevent cursor flicker
+                @$svg.addClass('dragging')
+            if @mousedrag
+                # move the point, applying associated changes
+                index = @mousedown.index
+                unctm = @mousedown.target.getTransformToElement(svg).inverse()
+                point = event_point(svg, evt).matrixTransform(unctm)
+                eye = @mousedown.eye
+                sample = @data.gaze.samples[index]
+                prev_sample = @data.gaze.samples[index - 1]
+
+                delta =
+                    x: point.x - sample[eye].x
+                    y: point.y - sample[eye].y
+                sample[eye].x = point.x
+                sample[eye].y = point.y
+
+                if eye == 'center'
+                    sample.left.x += delta.x
+                    sample.left.y += delta.y
+                    sample.right.x += delta.x
+                    sample.right.y += delta.y
+                else
+                    sample.center.x += delta.x / 2
+                    sample.center.y += delta.y / 2
+
+                if sample.center
+                    move_point(sample.center?.el, 'cx', 'cy', sample.center)
+                    move_point(sample.center?.sel, 'x1', 'y1', sample.center)
+                    move_point(prev_sample?.center?.sel, 'x2', 'y2', sample.center)
+                if sample.left and eye != 'right'
+                    move_point(sample.left?.el, 'cx', 'cy', sample.left)
+                    move_point(sample?.iel, 'x1', 'y1', sample.left)
+                    move_point(sample.left?.sel, 'x1', 'y1', sample.left)
+                    move_point(prev_sample?.left.sel, 'x2', 'y2', sample.left)
+                if sample.right and eye != 'left'
+                    move_point(sample.right?.el, 'cx', 'cy', sample.right)
+                    move_point(sample?.iel, 'x2', 'y2', sample.right)
+                    move_point(sample.right?.sel, 'x1', 'y1', sample.right)
+                    move_point(prev_sample?.right?.sel, 'x2', 'y2', sample.right)
+            # TODO pan
+        )
+
+        $(svg).mouseup((evt) =>
+            if @mousedrag
+                @mousedown = false
+                @mousedrag = false
+                @$svg.removeClass('dragging')
+                @$svg.trigger('dirty')
+                # TODO save
+        )
 
     load: (file, type, opts) ->
         opts = opts || {}
@@ -156,23 +240,23 @@ class window.FixFix
         
         samples = @data.gaze.samples
         # TODO remove flags.center
+        if @data.gaze.flags.lines
+            treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
+                sample = samples[index]
+                if sample?
+                    sample.render_intereye(@svg, parent, index)
         for eye of @data.gaze.opts.eyes
             if @data.gaze.opts.eyes[eye]
-                treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
-                    sample = samples[index]
-                    if sample?
-                        sample.render(@svg, parent, eye)
                 if @data.gaze.flags.lines
                     treedraw @svg, @svg.group(@gaze_group), samples.length - 1, tree_factor, (parent, index) =>
                         sample1 = samples[index]
                         sample2 = samples[index + 1]
                         if sample1? and sample2? and !sample1.blink
-                            sample1.render_saccade(@svg, parent, eye, sample2)
-        if @data.gaze.flags.lines
-            treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
-                sample = samples[index]
-                if sample?
-                    sample.render_intereye(@svg, parent)
+                            sample1.render_saccade(@svg, parent, eye, sample2, index)
+                treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
+                    sample = samples[index]
+                    if sample?
+                        sample.render(@svg, parent, eye, index)
 
 
 class window.FileBrowser
@@ -252,17 +336,6 @@ class window.FileBrowser
                 set_opts()
                 fixfix.render_gaze(opts)
 
-        svg = fixfix.svg._svg
-        $(svg).mousewheel (evt, delta, dx, dy) ->
-            if evt.metaKey || evt.ctrlKey
-                # zoom svg
-                ctm = fixfix.root.getCTM()
-                z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360)
-                p = event_point(svg, evt).matrixTransform(ctm.inverse())
-                k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y)
-                set_CTM(fixfix.root, ctm.multiply(k))
-                return false
-
         fixfix.$svg.on('loaded', (evt) ->
             fixation_opts = fixfix.data.gaze.flags.fixation
             $('#i-dt').prop('checked', !!fixation_opts)
@@ -270,5 +343,12 @@ class window.FileBrowser
                 for key, value of fixation_opts
                     $("##{key}, ##{key}-n").val(value)
         )
+
+        fixfix.$svg.on('dirty', (evt) ->
+            $('#fix-options').addClass('dirty')
+        )
+        $('#scrap-changes-btn').click (evt) =>
+            $('#fix-options').removeClass('dirty')
+            load()
 
         set_opts()

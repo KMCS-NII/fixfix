@@ -3,6 +3,9 @@ html, body
   padding: 0
   font: 15px arial, sans-serif
 
+.dragging *
+  cursor: pointer
+
 #file_browser
   position: fixed
   top: 0
@@ -38,6 +41,12 @@ html, body
     background-color: #0000ff
     color: #ffffff
 
+#fix-options
+  #scrap-changes, &.dirty #i-dt-options
+    display: none
+  #i-dt-options, &.dirty #scrap-changes
+    display: block
+
 #bb
   rect
     fill: #dddddd
@@ -47,7 +56,7 @@ html, body
     alignment-baseline: middle
 #gaze
   circle.drawn
-    cursor: hand
+    cursor: pointer
     &.left
       fill: #ff0000
     &.right
