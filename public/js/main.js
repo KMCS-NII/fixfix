@@ -98,30 +98,30 @@
       }
     };
 
-    Sample.prototype.render = function(svg, parent, eye, index) {
+    Sample.prototype.render = function(svg, parent, eye) {
       var gaze;
       gaze = this[eye];
       if ((gaze != null) && (gaze.x != null) && (gaze.y != null) && (gaze.pupil != null)) {
         return this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
-          id: eye[0] + index,
-          'data-index': index,
+          id: eye[0] + this.index,
+          'data-index': this.index,
           'data-eye': eye,
           "class": 'drawn ' + eye
         });
       }
     };
 
-    Sample.prototype.render_intereye = function(svg, parent, index) {
+    Sample.prototype.render_intereye = function(svg, parent) {
       if ((this.left.x != null) && (this.left.y != null) && (this.right.x != null) && (this.right.y != null)) {
         return this.iel = svg.line(parent, this.left.x, this.left.y, this.right.x, this.right.y, {
-          id: 'lr' + index,
-          'data-index': index,
+          id: 'i' + this.index,
+          'data-index': this.index,
           "class": 'drawn inter'
         });
       }
     };
 
-    Sample.prototype.render_saccade = function(svg, parent, eye, next, index) {
+    Sample.prototype.render_saccade = function(svg, parent, eye, next) {
       var gaze1, gaze2, klass;
       gaze1 = this[eye];
       gaze2 = next[eye];
@@ -131,8 +131,8 @@
           klass += ' rs';
         }
         return this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
-          id: 's' + eye[0] + index,
-          'data-index': index,
+          id: 's' + eye[0] + this.index,
+          'data-index': this.index,
           "class": klass
         });
       }
@@ -148,6 +148,58 @@
       this.flags = flags;
       this.row_bounds = row_bounds;
     }
+
+    Reading.prototype.find_row = function(index) {
+      var from, to, _i, _len, _ref, _ref1;
+      _ref = this.row_bounds;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        _ref1 = _ref[_i], from = _ref1[0], to = _ref1[1];
+        if (index <= to) {
+          if (index >= from) {
+            return [from, to];
+          }
+          break;
+        }
+      }
+      return [null, null];
+    };
+
+    Reading.prototype.toggle_class_on_range = function(from, to, klass, onoff) {
+      var eye, ids, index, _i, _j, _k, _l, _len, _ref, _ref1;
+      if (to == null) {
+        return;
+      }
+      ids = [];
+      _ref = ['l', 'c', 'r'];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        eye = _ref[_i];
+        for (index = _j = from; from <= to ? _j <= to : _j >= to; index = from <= to ? ++_j : --_j) {
+          ids.push('#' + eye + index);
+        }
+        for (index = _k = from, _ref1 = to - 1; from <= _ref1 ? _k <= _ref1 : _k >= _ref1; index = from <= _ref1 ? ++_k : --_k) {
+          ids.push('#s' + eye + index);
+        }
+      }
+      for (index = _l = from; from <= to ? _l <= to : _l >= to; index = from <= to ? ++_l : --_l) {
+        ids.push('#i' + index);
+      }
+      return $(ids.join(', ')).toggleClass(klass, onoff);
+    };
+
+    Reading.prototype.toggle_class_on_row_of = function(index, klass, onoff) {
+      var from, to, _ref;
+      _ref = this.find_row(index), from = _ref[0], to = _ref[1];
+      return this.toggle_class_on_range(from, to, klass, onoff);
+    };
+
+    Reading.prototype.highlight_row_of = function(index) {
+      $('.drawn').addClass('faint');
+      return this.toggle_class_on_row_of(index, 'faint', false);
+    };
+
+    Reading.prototype.unhighlight = function() {
+      return $('.faint').removeClass('faint');
+    };
 
     return Reading;
 
@@ -192,6 +244,7 @@
           origin: event_point(svg, evt).matrixTransform(unctm),
           unctm: unctm
         };
+        _this.data.gaze.highlight_row_of(_this.mousedown.index);
         return _this.mousedrag = false;
       });
       $(svg).mousemove(function(evt) {
@@ -243,11 +296,12 @@
       });
       return $(svg).mouseup(function(evt) {
         if (_this.mousedrag) {
-          _this.mousedown = false;
           _this.mousedrag = false;
           _this.$svg.removeClass('dragging');
-          return _this.$svg.trigger('dirty');
+          _this.$svg.trigger('dirty');
         }
+        _this.mousedown = false;
+        return _this.data.gaze.unhighlight();
       });
     };
 
@@ -274,7 +328,7 @@
           return v;
         }
       })).then(function(data) {
-        var sample, _i, _len, _ref;
+        var index, sample, _i, _j, _len, _len1, _ref, _ref1;
         _this.data[type] = data;
         _this.data[type].opts = opts;
         switch (type) {
@@ -288,6 +342,11 @@
                 sample.build_center();
               }
             }
+            _ref1 = _this.data.gaze.samples;
+            for (index = _j = 0, _len1 = _ref1.length; _j < _len1; index = ++_j) {
+              sample = _ref1[index];
+              sample.index = index;
+            }
             _this.render_gaze();
             return _this.$svg.trigger('loaded');
         }
@@ -296,7 +355,7 @@
     };
 
     FixFix.prototype.render_bb = function() {
-      var max, min, text_group, word, word_group, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2;
+      var text_group, word, word_group, _i, _j, _len, _len1, _ref, _ref1, _results;
       $(this.bb_group).empty();
       word_group = this.svg.group(this.bb_group, 'text');
       _ref = this.data.bb;
@@ -306,19 +365,12 @@
       }
       text_group = this.svg.group(this.bb_group, 'text');
       _ref1 = this.data.bb;
+      _results = [];
       for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
         word = _ref1[_j];
-        word.render_word(this.svg, text_group);
+        _results.push(word.render_word(this.svg, text_group));
       }
-      min = this.data.bb[0].top;
-      max = this.data.bb[0].bottom;
-      _ref2 = this.data.bb;
-      for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
-        word = _ref2[_k];
-        min = Math.min(min, word.top);
-        max = Math.max(max, word.bottom);
-      }
-      return this.svg._svg.setAttribute('height', max + min);
+      return _results;
     };
 
     FixFix.prototype.render_gaze = function(opts) {
@@ -335,7 +387,7 @@
           var sample;
           sample = samples[index];
           if (sample != null) {
-            return sample.render_intereye(_this.svg, parent, index);
+            return sample.render_intereye(_this.svg, parent);
           }
         });
       }
@@ -348,7 +400,7 @@
               sample1 = samples[index];
               sample2 = samples[index + 1];
               if ((sample1 != null) && (sample2 != null) && !sample1.blink) {
-                return sample1.render_saccade(_this.svg, parent, eye, sample2, index);
+                return sample1.render_saccade(_this.svg, parent, eye, sample2);
               }
             });
           }
@@ -356,7 +408,7 @@
             var sample;
             sample = samples[index];
             if (sample != null) {
-              return sample.render(_this.svg, parent, eye, index);
+              return sample.render(_this.svg, parent, eye);
             }
           }));
         } else {

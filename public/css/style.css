@@ -3,6 +3,11 @@ html, body {
   padding: 0;
   font: 15px arial, sans-serif; }
 
+#svg {
+  height: 100%;
+  width: 100%;
+  overflow: hidden; }
+
 .dragging * {
   cursor: pointer; }
 
@@ -53,7 +58,13 @@ html, body {
   text-anchor: middle;
   alignment-baseline: middle; }
 
+#gaze .faint {
+  opacity: 0.1; }
+#gaze circle {
+  fill: none; }
 #gaze circle.drawn {
+  stroke: white;
+  stroke-width: 0.5px;
   cursor: pointer; }
   #gaze circle.drawn.left {
     fill: red; }
@@ -62,7 +73,7 @@ html, body {
   #gaze circle.drawn.center {
     fill: black; }
 #gaze line.drawn {
-  stroke-width: 0.5; }
+  stroke-width: 0.5px; }
   #gaze line.drawn.left {
     stroke: red; }
   #gaze line.drawn.right {
@@ -71,11 +82,12 @@ html, body {
     stroke: black;
     stroke-width: 1.5px; }
   #gaze line.drawn.inter {
-    stroke: rgba(0, 0, 0, 0.2); }
+    stroke-width: 0.2px;
+    stroke: black; }
   #gaze line.drawn.rs.left, #gaze line.drawn.rs.right {
     stroke: none; }
   #gaze line.drawn.rs.center {
-    opacity: 0.5;
+    stroke-width: 0.3;
     stroke: #006600; }
 
 .ralign {

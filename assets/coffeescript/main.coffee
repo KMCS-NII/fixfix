@@ -58,38 +58,72 @@ class Sample
                 if @left.validity > @right.validity then @left.validity else @right.validity
             )
 
-    render: (svg, parent, eye, index) ->
+    render: (svg, parent, eye) ->
         gaze = this[eye]
         if gaze? and gaze.x? and gaze.y? and gaze.pupil?
             this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
-                id: eye[0] + index
-                'data-index': index
+                id: eye[0] + @index
+                'data-index': @index
                 'data-eye': eye
                 class: 'drawn ' + eye
             })
 
-    render_intereye: (svg, parent, index) ->
+    render_intereye: (svg, parent) ->
         if @left.x? and @left.y? and @right.x? and @right.y?
             this.iel = svg.line(parent, @left.x, @left.y, @right.x, @right.y, {
-                id: 'lr' + index
-                'data-index': index
+                id: 'i' + @index
+                'data-index': @index
                 class: 'drawn inter'
             })
 
-    render_saccade: (svg, parent, eye, next, index) ->
+    render_saccade: (svg, parent, eye, next) ->
         gaze1 = this[eye]
         gaze2 = next[eye]
         if gaze1? and gaze2? and gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
             klass = 'drawn ' + eye
             klass += ' rs' if @rs?
             this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
-                id: 's' + eye[0] + index
-                'data-index': index
+                id: 's' + eye[0] + @index
+                'data-index': @index
                 class: klass
             })
 
 class Reading
     constructor: (@samples, @flags, @row_bounds) ->
+
+    find_row: (index) ->
+        for [from, to] in @row_bounds
+            if index <= to
+                if index >= from
+                    return [from, to]
+                break
+        return [null, null] # no elements
+
+    toggle_class_on_range: (from, to, klass, onoff) ->
+        return unless to? # must have elements
+        # XXX try converting to element list, picking from @samples,
+        # using `$ids.add(...)`
+        ids = []
+        for eye in ['l', 'c', 'r']
+            for index in [from .. to]
+                ids.push('#' + eye + index)
+            for index in [from .. to - 1]
+                ids.push('#s' + eye + index)
+        for index in [from .. to]
+            ids.push('#i' + index)
+        $(ids.join(', ')).toggleClass(klass, onoff)
+
+    toggle_class_on_row_of: (index, klass, onoff) ->
+        [from, to] = @find_row(index)
+        @toggle_class_on_range(from, to, klass, onoff)
+
+    highlight_row_of: (index) ->
+        $('.drawn').addClass('faint')
+        @toggle_class_on_row_of(index, 'faint', false)
+
+    unhighlight: ->
+        $('.faint').removeClass('faint')
+
 
 class window.FixFix
     constructor: (svg) ->
@@ -125,6 +159,7 @@ class window.FixFix
                 eye: $target.data('eye')
                 origin: event_point(svg, evt).matrixTransform(unctm)
                 unctm: unctm
+            @data.gaze.highlight_row_of(@mousedown.index)
             @mousedrag = false
         )
 
@@ -176,11 +211,12 @@ class window.FixFix
 
         $(svg).mouseup((evt) =>
             if @mousedrag
-                @mousedown = false
                 @mousedrag = false
                 @$svg.removeClass('dragging')
                 @$svg.trigger('dirty')
                 # TODO save
+            @mousedown = false
+            @data.gaze.unhighlight()
         )
 
     load: (file, type, opts) ->
@@ -210,6 +246,8 @@ class window.FixFix
                     if @data.gaze.flags.center
                         for sample in @data.gaze.samples
                             sample.build_center()
+                    for sample, index in @data.gaze.samples
+                        sample.index = index
                     @render_gaze()
                     @$svg.trigger('loaded')
         delete opts.cache
@@ -224,13 +262,6 @@ class window.FixFix
         for word in @data.bb
             word.render_word(@svg, text_group)
 
-        min = @data.bb[0].top
-        max = @data.bb[0].bottom
-        for word in @data.bb
-            min = Math.min(min, word.top)
-            max = Math.max(max, word.bottom)
-        @svg._svg.setAttribute('height', max + min)
-
     render_gaze: (opts) ->
         $(@gaze_group).empty()
         tree_factor = 20
@@ -244,7 +275,7 @@ class window.FixFix
             treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
                 sample = samples[index]
                 if sample?
-                    sample.render_intereye(@svg, parent, index)
+                    sample.render_intereye(@svg, parent)
         for eye of @data.gaze.opts.eyes
             if @data.gaze.opts.eyes[eye]
                 if @data.gaze.flags.lines
@@ -252,11 +283,11 @@ class window.FixFix
                         sample1 = samples[index]
                         sample2 = samples[index + 1]
                         if sample1? and sample2? and !sample1.blink
-                            sample1.render_saccade(@svg, parent, eye, sample2, index)
+                            sample1.render_saccade(@svg, parent, eye, sample2)
                 treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
                     sample = samples[index]
                     if sample?
-                        sample.render(@svg, parent, eye, index)
+                        sample.render(@svg, parent, eye)
 
 
 class window.FileBrowser
