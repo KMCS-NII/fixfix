@@ -106,7 +106,7 @@ class window.FixFix
         svg = @svg._svg
 
         $(svg).mousewheel (evt, delta, dx, dy) =>
-            if evt.metaKey || evt.ctrlKey
+            if evt.shiftKey
                 # zoom svg
                 ctm = @root.getCTM()
                 z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360)
@@ -211,7 +211,7 @@ class window.FixFix
                         for sample in @data.gaze.samples
                             sample.build_center()
                     @render_gaze()
-            @$svg.trigger('loaded')
+                    @$svg.trigger('loaded')
         delete opts.cache
 
     render_bb: ->

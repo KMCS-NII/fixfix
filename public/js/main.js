@@ -172,7 +172,7 @@
       svg = this.svg._svg;
       $(svg).mousewheel(function(evt, delta, dx, dy) {
         var ctm, k, p, z;
-        if (evt.metaKey || evt.ctrlKey) {
+        if (evt.shiftKey) {
           ctm = _this.root.getCTM();
           z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360);
           p = event_point(svg, evt).matrixTransform(ctm.inverse());
@@ -279,8 +279,7 @@
         _this.data[type].opts = opts;
         switch (type) {
           case 'bb':
-            _this.render_bb();
-            break;
+            return _this.render_bb();
           case 'gaze':
             if (_this.data.gaze.flags.center) {
               _ref = _this.data.gaze.samples;
@@ -290,8 +289,8 @@
               }
             }
             _this.render_gaze();
+            return _this.$svg.trigger('loaded');
         }
-        return _this.$svg.trigger('loaded');
       });
       return delete opts.cache;
     };

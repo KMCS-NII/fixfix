@@ -43,6 +43,9 @@ html, body {
 #fix-options #i-dt-options, #fix-options.dirty #scrap-changes {
   display: block; }
 
+#scrap-changes div {
+  font-size: 80%; }
+
 #bb rect {
   fill: #dddddd; }
 #bb text {
