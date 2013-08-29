@@ -59,7 +59,7 @@ module Routes
               # too as "edit version"
               if params[:dispersion]
                 # fixation detection requested
-                reading.flags[:fixation] = Hash[%i(dispersion duration blink).map { |key|
+                reading.flags[:fixation] = Hash[[:dispersion, :duration, :blink].map { |key|
                   [key, params[key].to_f]
                 }]
                 reading.find_fixations!
