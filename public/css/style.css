@@ -36,33 +36,36 @@ html, body {
     color: white; }
 
 #bb rect {
-  fill: rgba(0, 0, 0, 0.1); }
+  fill: #dddddd; }
 #bb text {
-  fill: rgba(0, 0, 0, 0.4);
+  fill: #666666;
   text-anchor: middle;
   alignment-baseline: middle; }
 
-#gaze circle.drawn.left {
-  fill: rgba(255, 0, 0, 0.3); }
-#gaze circle.drawn.right {
-  fill: rgba(0, 0, 255, 0.3); }
-#gaze circle.drawn.center {
-  fill: rgba(0, 0, 0, 0.8); }
+#gaze circle.drawn {
+  cursor: hand; }
+  #gaze circle.drawn.left {
+    fill: red; }
+  #gaze circle.drawn.right {
+    fill: blue; }
+  #gaze circle.drawn.center {
+    fill: black; }
 #gaze line.drawn {
   stroke-width: 0.5; }
   #gaze line.drawn.left {
-    stroke: rgba(255, 0, 0, 0.5); }
+    stroke: red; }
   #gaze line.drawn.right {
-    stroke: rgba(0, 0, 255, 0.5); }
+    stroke: blue; }
   #gaze line.drawn.center {
-    stroke: rgba(0, 0, 0, 0.5);
+    stroke: black;
     stroke-width: 1.5px; }
   #gaze line.drawn.inter {
     stroke: rgba(0, 0, 0, 0.2); }
   #gaze line.drawn.rs.left, #gaze line.drawn.rs.right {
     stroke: none; }
   #gaze line.drawn.rs.center {
-    stroke: rgba(32, 255, 32, 0.2); }
+    opacity: 0.5;
+    stroke: #006600; }
 
 .ralign {
   text-align: right; }

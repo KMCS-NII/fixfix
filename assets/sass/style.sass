@@ -40,27 +40,28 @@ html, body
 
 #bb
   rect
-    fill: rgba(0, 0, 0, 0.10)
+    fill: #dddddd
   text
-    fill: rgba(0, 0, 0, 0.40)
+    fill: #666666
     text-anchor: middle
     alignment-baseline: middle
 #gaze
   circle.drawn
+    cursor: hand
     &.left
-      fill: rgba(255, 0, 0, 0.3)
+      fill: #ff0000
     &.right
-      fill: rgba(0, 0, 255, 0.3)
+      fill: #0000ff
     &.center
-      fill: rgba(0, 0, 0, 0.8)
+      fill: #000000
   line.drawn
     stroke-width: 0.5
     &.left
-      stroke: rgba(255, 0, 0, 0.5)
+      stroke: #ff0000
     &.right
-      stroke: rgba(0, 0, 255, 0.5)
+      stroke: #0000ff
     &.center
-      stroke: rgba(0, 0, 0, 0.5)
+      stroke: #000000
       stroke-width: 1.5px
     &.inter
       stroke: rgba(0, 0, 0, 0.2)
@@ -68,7 +69,8 @@ html, body
       &.left, &.right
         stroke: none
       &.center
-        stroke: rgba(32, 255, 32, 0.2)
+        opacity: 0.5
+        stroke: #006600
 
 .ralign
   text-align: right
