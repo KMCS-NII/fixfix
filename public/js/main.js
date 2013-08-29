@@ -172,7 +172,7 @@
       svg = this.svg._svg;
       $(svg).mousewheel(function(evt, delta, dx, dy) {
         var ctm, k, p, z;
-        if (evt.shiftKey) {
+        if (evt.altKey || evt.metaKey) {
           ctm = _this.root.getCTM();
           z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360);
           p = event_point(svg, evt).matrixTransform(ctm.inverse());

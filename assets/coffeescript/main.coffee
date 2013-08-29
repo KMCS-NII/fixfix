@@ -106,7 +106,7 @@ class window.FixFix
         svg = @svg._svg
 
         $(svg).mousewheel (evt, delta, dx, dy) =>
-            if evt.shiftKey
+            if evt.altKey || evt.metaKey
                 # zoom svg
                 ctm = @root.getCTM()
                 z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360)
