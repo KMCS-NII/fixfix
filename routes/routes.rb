@@ -1,5 +1,8 @@
 require 'sinatra/base'
 require 'json'
+require 'zlib'
+
+VERSION = [0, 0, 0]
 
 def ensure_sandboxed(file, dir)
   file = File.expand_path(file)
@@ -32,13 +35,38 @@ module Routes
           when "bb"
             Word.load(file)
           when "gaze"
-            reading = Reading.new(TobiiParser.new, file)
-            if params[:dispersion]
-              # fixation detection requested
-              reading.find_fixations!(I_DT.new(
-                *params.values_at(:dispersion, :duration, :blink).map(&:to_f)
-              ))
-              reading.find_rows!
+            reading = nil
+
+            if params[:cache] && File.exist?(file + '.edit')
+              # for normal editing, just grab the latest version
+              version, reading = *Zlib::GzipReader.open(file + '.edit') { |f| Marshal.load(f) }
+              reading = nil if version != VERSION
+            end
+            unless reading
+              # for first display, try to load the original from cache,
+              # and cache if we can't
+              if File.exist?(file + '.orig')
+                version, reading = *Zlib::GzipReader.open(file + '.orig') { |f| Marshal.load(f) }
+                reading = nil if version != VERSION
+              end
+              unless reading
+                reading = Reading.new(TobiiParser.new, file)
+                payload = [VERSION, reading]
+                Zlib::GzipWriter.open(file + '.orig') { |f| Marshal.dump(payload, f) }
+              end
+
+              # then find fixations if we needed them, and cache those
+              # too as "edit version"
+              if params[:dispersion]
+                # fixation detection requested
+                reading.flags[:fixation] = Hash[%i(dispersion duration blink).map { |key|
+                  [key, params[key].to_f]
+                }]
+                reading.find_fixations!
+                reading.find_rows!
+              end
+              payload = [VERSION, reading]
+              Zlib::GzipWriter.open(file + '.edit') { |f| Marshal.dump(payload, f) }
             end
             reading
           end
@@ -55,9 +83,11 @@ module Routes
 
       dirs = Dir[File.join(path, '*')].
           select { |item| File.directory?(item) }.
-          map { |item| item[path.length .. -1] }
+          map { |item| item[path.length .. -1] }.
+          sort
       files = Dir[File.join(path, "*.#{ext}")].
-          map { |item| item[path.length .. -1] }
+          map { |item| item[path.length .. -1] }.
+          sort
 
       haml :file_tree, :locals => { dir: dir, dirs: dirs, files: files }
     end

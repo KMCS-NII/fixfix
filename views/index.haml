@@ -6,6 +6,7 @@
     %script(src="#{url("js/jquery.svg.min.js")}")
     %script(src="#{url("js/jqueryFileTree.js")}")
     %script(src="#{url("js/jquery-ajax-reviver.js")}")
+    %script(src="#{url("js/jquery.mousewheel.js")}")
     %script(src="#{url("js/main.js")}")
     :javascript
       $(function() {
@@ -24,29 +25,36 @@
         Gaze Data
       .browser_container
         #gaze_browser.browser
-      %div#i-dt-options
-        %div
-          %input#i-dt(type="checkbox" checked="checked")
-          %label(for="i-dt")
-            Fixations (I-DT)
-        %div
-          Dispersion threshold (px)
-          %input#dispersion(type="range" min="10" max="100" value="46")
-          %input#dispersion_n(type="number" min="10" max="100" value="46")
-        %div
-          Duration threshold (ms)
-          %input#duration(type="range" min="10" max="100" value="60")
-          %input#duration_n(type="number" min="10" max="100" value="60")
-        %div
-          Blink threshold (ms)
-          %input#blink(type="range" min="20" max="400" value="70")
-          %input#blink_n(type="number" min="20" max="400" value="70")
-        %div#eye-options
-          Eyes:
-          %input#left-eye(type="checkbox" checked="checked")
-          %label(for="left-eye") L
-          %input#center-eye(type="checkbox" checked="checked")
-          %label(for="center-eye") C
-          %input#right-eye(type="checkbox" checked="checked")
-          %label(for="right-eye") R
+      %div#fix-options
+        %div#i-dt-options
+          %div
+            %input#i-dt(type="checkbox" checked="checked")
+            %label(for="i-dt")
+              Fixations (I-DT)
+          %div
+            Dispersion threshold (px)
+            %input#dispersion(type="range" min="10" max="100" value="46")
+            %input#dispersion_n(type="number" min="10" max="100" value="46")
+          %div
+            Duration threshold (ms)
+            %input#duration(type="range" min="10" max="100" value="60")
+            %input#duration_n(type="number" min="10" max="100" value="60")
+          %div
+            Blink threshold (ms)
+            %input#blink(type="range" min="20" max="400" value="70")
+            %input#blink_n(type="number" min="20" max="400" value="70")
+          %div#eye-options
+            Eyes:
+            %input#left-eye(type="checkbox" checked="checked")
+            %label(for="left-eye") L
+            %input#center-eye(type="checkbox" checked="checked")
+            %label(for="center-eye") C
+            %input#right-eye(type="checkbox" checked="checked")
+            %label(for="right-eye") R
+        %div#scrap-changes
+          In order to change the fixation detection parameters,
+          the changes will be scrapped.
+          %br
+          %button#scrap-changes-btn
+            Scrap changes
     #svg
