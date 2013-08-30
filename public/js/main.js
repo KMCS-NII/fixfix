@@ -298,10 +298,31 @@
         }
       });
       return $(svg).mouseup(function(evt) {
+        var payload, sample;
         if (_this.mousedrag) {
-          _this.mousedrag = false;
+          sample = _this.data.gaze.samples[_this.mousedown.index];
           _this.$svg.removeClass('dragging');
           _this.$svg.trigger('dirty');
+          console.log(_this.mousedown);
+          payload = {
+            file: _this.data.gaze.opts.file,
+            index: _this.mousedown.index
+          };
+          if (_this.mousedown.eye === 'center') {
+            payload.lx = sample.left.x;
+            payload.ly = sample.left.y;
+            payload.rx = sample.right.x;
+            payload.ry = sample.right.y;
+          } else {
+            payload.x = sample[_this.mousedown.eye].x;
+            payload.y = sample[_this.mousedown.eye].y;
+          }
+          $.ajax({
+            url: 'change',
+            type: 'post',
+            data: payload
+          });
+          _this.mousedrag = false;
         }
         _this.mousedown = false;
         return _this.data.gaze.unhighlight();
