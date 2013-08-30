@@ -15,44 +15,41 @@ class Reading
     self
   end
 
-  X_THRESHOLD = 20
+  SACCADE_X_THRESHOLD = 20
+  def return_sweep_part?(sample_gaze, last_sample_gaze)
+    !(
+      last_sample_gaze &&
+      last_sample_gaze.validity < 4 &&
+      sample_gaze &&
+      sample_gaze.validity < 4
+    ) ||
+    last_sample_gaze.x - SACCADE_X_THRESHOLD > sample_gaze.x &&
+    last_sample_gaze.y < sample_gaze.y
+  end
+
   def find_rows!
     last_sample = nil
+    last_index = 0
     from = 0
     streak = false
     @row_bounds = []
 
     @samples.each_with_index do |sample, i|
       if last_sample &&
-          ( # left
-            !(
-              last_sample.left &&
-              last_sample.left.validity < 4 &&
-              sample.left &&
-              sample.left.validity < 4
-            ) ||
-            last_sample.left.x - X_THRESHOLD > sample.left.x &&
-            last_sample.left.y < sample.left.y
-          ) &&
-          ( # right
-            !(
-              last_sample.right &&
-              last_sample.right.validity < 4 &&
-              sample.right &&
-              sample.right.validity < 4
-            ) ||
-            last_sample.right.x - X_THRESHOLD > sample.right.x &&
-            last_sample.right.y < sample.right.y
-          )
+          return_sweep_part?(sample.left, last_sample.left) &&
+          return_sweep_part?(sample.right, last_sample.right)
 
-        @row_bounds << [from, i] unless streak
+        # return sweep part
+        @row_bounds << [from, last_index] unless streak
         last_sample.rs = true
         streak = true
       elsif streak
-        from = i if streak
+        # normal saccade
+        from = last_index if streak
         streak = false
       end
       last_sample = sample
+      last_index = i
     end
     @row_bounds << [from, @samples.size] unless streak
   end

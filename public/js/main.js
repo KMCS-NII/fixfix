@@ -130,6 +130,9 @@
         if (this.rs != null) {
           klass += ' rs';
         }
+        if (this.blink != null) {
+          klass += ' blink';
+        }
         return this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
           id: 's' + eye[0] + this.index,
           'data-index': this.index,
@@ -399,7 +402,7 @@
               var sample1, sample2;
               sample1 = samples[index];
               sample2 = samples[index + 1];
-              if ((sample1 != null) && (sample2 != null) && !sample1.blink) {
+              if ((sample1 != null) && (sample2 != null)) {
                 return sample1.render_saccade(_this.svg, parent, eye, sample2);
               }
             });

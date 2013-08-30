@@ -3,10 +3,11 @@ html, body
   padding: 0
   font: 15px arial, sans-serif
 
-#svg
+#svg, svg
   height: 100%
   width: 100%
   overflow: hidden
+  cursor: default
 
 .dragging *
   cursor: pointer
@@ -95,6 +96,12 @@ html, body
       &.center
         stroke-width: 0.3
         stroke: #006600
+    &.blink
+      &.left, &.right
+        stroke: none
+      &.center
+        stroke-width: 0.2
+        stroke: #999900
 
 .ralign
   text-align: right

@@ -3,10 +3,11 @@ html, body {
   padding: 0;
   font: 15px arial, sans-serif; }
 
-#svg {
+#svg, svg {
   height: 100%;
   width: 100%;
-  overflow: hidden; }
+  overflow: hidden;
+  cursor: default; }
 
 .dragging * {
   cursor: pointer; }
@@ -89,6 +90,11 @@ html, body {
   #gaze line.drawn.rs.center {
     stroke-width: 0.3;
     stroke: #006600; }
+  #gaze line.drawn.blink.left, #gaze line.drawn.blink.right {
+    stroke: none; }
+  #gaze line.drawn.blink.center {
+    stroke-width: 0.2;
+    stroke: #999900; }
 
 .ralign {
   text-align: right; }
