@@ -212,10 +212,33 @@ class window.FixFix
 
         $(svg).mouseup((evt) =>
             if @mousedrag
-                @mousedrag = false
+                sample = @data.gaze.samples[@mousedown.index]
                 @$svg.removeClass('dragging')
                 @$svg.trigger('dirty')
-                # TODO save
+
+                console.log(@mousedown)
+                # save
+                payload =
+                    file: @data.gaze.opts.file
+                    index: @mousedown.index
+
+                if @mousedown.eye == 'center'
+                    payload.lx = sample.left.x
+                    payload.ly = sample.left.y
+                    payload.rx = sample.right.x
+                    payload.ry = sample.right.y
+                else
+                    payload.x = sample[@mousedown.eye].x
+                    payload.y = sample[@mousedown.eye].y
+
+                $.ajax
+                    url: 'change'
+                    type: 'post'
+                    data: payload
+
+                @mousedrag = false
+
+            # now forget the click happened
             @mousedown = false
             @data.gaze.unhighlight()
         )

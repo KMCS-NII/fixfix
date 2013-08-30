@@ -75,6 +75,22 @@ module Routes
       data.to_json
     end
 
+    app.post '/change' do
+      file = File.join('data', params[:file])
+      ensure_sandboxed(file, 'data')
+      _version, reading = *Zlib::GzipReader.open(file + '.edit') { |f| Marshal.load(f) }
+      # TODO check availability and version
+      
+      sample = reading.samples[params[:index].to_i]
+      sample.left.x = params[:lx].to_f
+      sample.left.y = params[:ly].to_f
+      sample.right.x = params[:rx].to_f
+      sample.right.y = params[:ry].to_f
+
+      payload = [VERSION, reading]
+      Zlib::GzipWriter.open(file + '.edit') { |f| Marshal.dump(payload, f) }
+    end
+
     # file browser (by file extension)
     app.post '/files/:ext' do |ext|
       dir = params[:dir]

@@ -1,5 +1,5 @@
 class Reading
-  attr_accessor :flags
+  attr_accessor :flags, :samples
 
   def initialize(parser, filename)
     @samples = parser.parse(filename)
