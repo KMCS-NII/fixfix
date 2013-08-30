@@ -82,6 +82,7 @@ class Sample
         if gaze1? and gaze2? and gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
             klass = 'drawn ' + eye
             klass += ' rs' if @rs?
+            klass += ' blink' if @blink?
             this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
                 id: 's' + eye[0] + @index
                 'data-index': @index
@@ -282,7 +283,7 @@ class window.FixFix
                     treedraw @svg, @svg.group(@gaze_group), samples.length - 1, tree_factor, (parent, index) =>
                         sample1 = samples[index]
                         sample2 = samples[index + 1]
-                        if sample1? and sample2? and !sample1.blink
+                        if sample1? and sample2?
                             sample1.render_saccade(@svg, parent, eye, sample2)
                 treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
                     sample = samples[index]
