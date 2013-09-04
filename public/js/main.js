@@ -303,7 +303,6 @@
           sample = _this.data.gaze.samples[_this.mousedown.index];
           _this.$svg.removeClass('dragging');
           _this.$svg.trigger('dirty');
-          console.log(_this.mousedown);
           payload = {
             file: _this.data.gaze.opts.file,
             index: _this.mousedown.index
@@ -534,24 +533,25 @@
         }
       });
       fixfix.$svg.on('loaded', function(evt) {
-        var fixation_opts, key, value, _results;
+        var fixation_opts, key, value;
         fixation_opts = fixfix.data.gaze.flags.fixation;
         $('#i-dt').prop('checked', !!fixation_opts);
         if (fixation_opts) {
-          _results = [];
           for (key in fixation_opts) {
             value = fixation_opts[key];
-            _results.push($("#" + key + ", #" + key + "-n").val(value));
+            $("#" + key + ", #" + key + "-n").val(value);
           }
-          return _results;
         }
+        $('#fix-options').toggleClass('dirty', fixfix.data.gaze.flags.dirty);
+        $('#tsv-link').attr('href', "dl" + _this.gaze_file);
+        return $('#download').css('display', 'block');
       });
       fixfix.$svg.on('dirty', function(evt) {
         return $('#fix-options').addClass('dirty');
       });
       $('#scrap-changes-btn').click(function(evt) {
-        $('#fix-options').removeClass('dirty');
-        return load();
+        load();
+        return fixfix.$svg.trigger('clean');
       });
       set_opts();
     }

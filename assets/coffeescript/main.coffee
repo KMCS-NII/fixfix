@@ -216,7 +216,6 @@ class window.FixFix
                 @$svg.removeClass('dragging')
                 @$svg.trigger('dirty')
 
-                console.log(@mousedown)
                 # save
                 payload =
                     file: @data.gaze.opts.file
@@ -391,19 +390,22 @@ class window.FileBrowser
                 set_opts()
                 fixfix.render_gaze(opts)
 
-        fixfix.$svg.on('loaded', (evt) ->
+        fixfix.$svg.on('loaded', (evt) =>
             fixation_opts = fixfix.data.gaze.flags.fixation
             $('#i-dt').prop('checked', !!fixation_opts)
             if fixation_opts
                 for key, value of fixation_opts
                     $("##{key}, ##{key}-n").val(value)
+            $('#fix-options').toggleClass('dirty', fixfix.data.gaze.flags.dirty)
+            $('#tsv-link').attr('href', "dl#{@gaze_file}")
+            $('#download').css('display', 'block')
         )
 
         fixfix.$svg.on('dirty', (evt) ->
             $('#fix-options').addClass('dirty')
         )
         $('#scrap-changes-btn').click (evt) =>
-            $('#fix-options').removeClass('dirty')
             load()
+            fixfix.$svg.trigger('clean')
 
         set_opts()
