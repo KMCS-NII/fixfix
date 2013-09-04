@@ -1,6 +1,7 @@
 source "https://rubygems.org"
 
 gem "sinatra"
+gem 'emk-sinatra-url-for'
 gem "haml"
 
 group :development do

@@ -1,8 +1,9 @@
 require 'sinatra/base'
+require 'sinatra/url_for'
 require 'json'
 require 'zlib'
+require 'time'
 
-VERSION = [0, 0, 0]
 
 def ensure_sandboxed(file, dir)
   file = File.expand_path(file)
@@ -14,8 +15,7 @@ end
 module Routes
   def self.registered(app)
     # start page
-    app.get "/" do
-      redirect request.url + '/' if request.path_info == ''
+    app.get "/?" do
       haml :index
     end
 
@@ -37,22 +37,15 @@ module Routes
           when "gaze"
             reading = nil
 
-            if params[:cache] && File.exist?(file + '.edit')
-              # for normal editing, just grab the latest version
-              version, reading = *Zlib::GzipReader.open(file + '.edit') { |f| Marshal.load(f) }
-              reading = nil if version != VERSION
-            end
+            # for normal editing, just grab the latest version
+            reading = Reading.load_bin(file + '.edit') if params[:cache]
             unless reading
               # for first display, try to load the original from cache,
               # and cache if we can't
-              if File.exist?(file + '.orig')
-                version, reading = *Zlib::GzipReader.open(file + '.orig') { |f| Marshal.load(f) }
-                reading = nil if version != VERSION
-              end
+              reading = Reading.load_bin(file + '.orig')
               unless reading
                 reading = Reading.new(TobiiParser.new, file)
-                payload = [VERSION, reading]
-                Zlib::GzipWriter.open(file + '.orig') { |f| Marshal.dump(payload, f) }
+                reading.save_bin(file + '.orig')
               end
 
               # then find fixations if we needed them, and cache those
@@ -65,8 +58,7 @@ module Routes
                 reading.find_fixations!
                 reading.find_rows!
               end
-              payload = [VERSION, reading]
-              Zlib::GzipWriter.open(file + '.edit') { |f| Marshal.dump(payload, f) }
+              reading.save_bin(file + '.edit')
             end
             reading
           end
@@ -78,8 +70,7 @@ module Routes
     app.post '/change' do
       file = File.join('data', params[:file])
       ensure_sandboxed(file, 'data')
-      _version, reading = *Zlib::GzipReader.open(file + '.edit') { |f| Marshal.load(f) }
-      # TODO check availability and version
+      reading = Reading.load_bin(file + '.edit')
       
       sample = reading.samples[params[:index].to_i]
       sample.left.x = params[:lx].to_f
@@ -87,8 +78,40 @@ module Routes
       sample.right.x = params[:rx].to_f
       sample.right.y = params[:ry].to_f
 
-      payload = [VERSION, reading]
-      Zlib::GzipWriter.open(file + '.edit') { |f| Marshal.dump(payload, f) }
+      reading.flags[:dirty] = true
+      reading.save_bin(file + '.edit')
+    end
+
+    app.get '/dl/*' do
+      file = File.join('data', params[:splat])
+      ensure_sandboxed(file, 'data')
+      edit_file = file + '.edit'
+      reading = Reading.load_bin(edit_file)
+
+      last_modified File.mtime(edit_file).httpdate()
+
+      headers = [
+        "GazePointLeftX",
+        "GazePointLeftY",
+        "GazePointRightX",
+        "GazePointRightX",
+        "GazePointX",
+        "GazePointX",
+        "PupilLeft",
+        "PupilRight",
+        "RecordingTimestamp"
+      ]
+
+      content_type 'text/plain', :charset => 'utf-8'
+      CSV.generate(
+        col_sep: "\t",
+        headers: headers,
+        write_headers: true
+      ) do |csv|
+        reading.to_a.each do |sample_array|
+          csv << sample_array
+        end
+      end
     end
 
     # file browser (by file extension)

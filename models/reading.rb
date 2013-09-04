@@ -1,5 +1,9 @@
+require 'csv'
+
 class Reading
   attr_accessor :flags, :samples
+
+  VERSION = [0, 0, 0]
 
   def initialize(parser, filename)
     @samples = parser.parse(filename)
@@ -52,6 +56,23 @@ class Reading
       last_index = i
     end
     @row_bounds << [from, @samples.size] unless streak
+  end
+
+  def save_bin(file)
+    payload = [VERSION, self]
+    Zlib::GzipWriter.open(file) { |f| Marshal.dump(payload, f) }
+    $stderr.puts "Saving to #{file}"
+  end
+
+  def self.load_bin(file)
+    return nil unless File.exist?(file)
+    version, reading = *Zlib::GzipReader.open(file) { |f| Marshal.load(f) }
+    return nil if version != VERSION
+    reading
+  end
+
+  def to_a
+    @samples.map(&:to_a)
   end
 
   def to_json(*a)

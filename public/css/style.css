@@ -96,5 +96,8 @@ html, body {
     stroke-width: 0.2;
     stroke: #999900; }
 
+#download {
+  display: none; }
+
 .ralign {
   text-align: right; }
