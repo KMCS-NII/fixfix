@@ -245,7 +245,6 @@
         } else if (node_name === 'svg') {
 
         } else {
-          evt.stopPropagation();
           return;
         }
         _this.mousedown = {
@@ -264,7 +263,7 @@
           _this.$svg.addClass('dragging');
         }
         if (_this.mousedrag) {
-          unctm = _this.mousedown.target.getTransformToElement(svg).inverse();
+          unctm = _this.root.getCTM().inverse();
           point = event_point(svg, evt).matrixTransform(unctm);
           if (_this.mousedown.index != null) {
             index = _this.mousedown.index;

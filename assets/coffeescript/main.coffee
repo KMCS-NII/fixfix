@@ -161,7 +161,6 @@ class window.FixFix
                 @data.gaze.highlight_row_of(index)
             else if node_name == 'svg'
             else
-                evt.stopPropagation()
                 return
 
             @mousedown =
@@ -179,7 +178,7 @@ class window.FixFix
                 # prevent cursor flicker
                 @$svg.addClass('dragging')
             if @mousedrag
-                unctm = @mousedown.target.getTransformToElement(svg).inverse()
+                unctm = @root.getCTM().inverse()
                 point = event_point(svg, evt).matrixTransform(unctm)
 
                 if @mousedown.index?
