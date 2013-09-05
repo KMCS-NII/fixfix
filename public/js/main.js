@@ -466,16 +466,18 @@
       $gaze_selected = $();
       load_timer = null;
       set_opts = function() {
-        var blink, dispersion, duration;
+        var blink, dispersion, duration, smoothing;
         fixations = $('#i-dt').is(':checked');
         if (fixations) {
           dispersion = parseInt($('#dispersion_n').val(), 10);
           duration = parseInt($('#duration_n').val(), 10);
           blink = parseInt($('#blink_n').val(), 10);
+          smoothing = parseInt($('#smoothing_n').val(), 10);
           opts = {
             dispersion: dispersion,
             duration: duration,
-            blink: blink
+            blink: blink,
+            smoothing: smoothing
           };
         } else {
           opts = {};
@@ -515,7 +517,10 @@
         clearTimeout(load_timer);
         return load_timer = setTimeout(load, 500);
       };
-      $('#i-dt-options input[type="range"], #i-dt-options input[type="number"]').bind('input', function(evt) {
+      $('#smoothing, #smoothing_n').bind('input', function(evt) {
+        return load_with_delay();
+      });
+      $('#i-dt-options input').bind('input', function(evt) {
         if (fixations) {
           return load_with_delay();
         }
@@ -553,7 +558,8 @@
             $("#" + key + ", #" + key + "-n").val(value);
           }
         }
-        $('#fix-options').toggleClass('dirty', fixfix.data.gaze.flags.dirty);
+        $('#smoothing, #smoothing-n').val(fixfix.data.gaze.flags.smoothing);
+        $('#fix-options').toggleClass('dirty', !!fixfix.data.gaze.flags.dirty);
         $('#tsv-link').attr('href', "dl" + _this.gaze_file);
         return $('#download').css('display', 'block');
       });

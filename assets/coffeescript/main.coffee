@@ -344,10 +344,12 @@ class window.FileBrowser
                 dispersion = parseInt($('#dispersion_n').val(), 10)
                 duration = parseInt($('#duration_n').val(), 10)
                 blink = parseInt($('#blink_n').val(), 10)
+                smoothing = parseInt($('#smoothing_n').val(), 10)
                 opts =
                     dispersion: dispersion
                     duration: duration
                     blink: blink
+                    smoothing: smoothing
             else
                 opts = {}
 
@@ -384,7 +386,10 @@ class window.FileBrowser
             clearTimeout(load_timer)
             load_timer = setTimeout(load, 500)
 
-        $('#i-dt-options input[type="range"], #i-dt-options input[type="number"]').bind('input', (evt) ->
+        $('#smoothing, #smoothing_n').bind('input', (evt) ->
+            load_with_delay()
+        )
+        $('#i-dt-options input').bind('input', (evt) ->
             if fixations
                 load_with_delay()
         )
@@ -413,7 +418,8 @@ class window.FileBrowser
             if fixation_opts
                 for key, value of fixation_opts
                     $("##{key}, ##{key}-n").val(value)
-            $('#fix-options').toggleClass('dirty', fixfix.data.gaze.flags.dirty)
+            $('#smoothing, #smoothing-n').val(fixfix.data.gaze.flags.smoothing)
+            $('#fix-options').toggleClass('dirty', !!fixfix.data.gaze.flags.dirty)
             $('#tsv-link').attr('href', "dl#{@gaze_file}")
             $('#download').css('display', 'block')
         )

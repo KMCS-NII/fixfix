@@ -58,6 +58,58 @@ class Reading
     @row_bounds << [from, @samples.size] unless streak
   end
 
+  def apply_smoothing!(window_size)
+    window_half = window_size >> 1
+    result = []
+
+    window_left_x = []
+    window_left_y = []
+    window_left_pupil = []
+    window_right_x = []
+    window_right_y = []
+    window_right_pupil = []
+
+    @samples.each_with_index do |sample, index|
+      # advance the windows
+      window_left_x << (sample.left && sample.left.x)
+      window_left_y << (sample.left && sample.left.y)
+      window_left_pupil << (sample.left && sample.left.pupil)
+      window_right_x << (sample.right && sample.right.x)
+      window_right_y << (sample.right && sample.right.y)
+      window_right_pupil << (sample.right && sample.right.pupil)
+
+      if index >= window_size - 1
+        mid_sample = @samples[index - window_size + window_half]
+
+        if mid_sample.invalid?
+          result << mid_sample
+        else
+          # calculate median sample
+          left_x = median(window_left_x)
+          left_y = median(window_left_y)
+          left_pupil = median(window_left_pupil)
+          right_x = median(window_right_x)
+          right_y = median(window_right_y)
+          right_pupil = median(window_right_pupil)
+
+          left = Gaze.new(left_x, left_y, left_pupil, (left_x && left_y) ? 0 : 4)
+          right = Gaze.new(right_x, right_y, right_pupil, (right_x && right_y) ? 0 : 4)
+          result << Sample.new(mid_sample.time, left, right)
+        end
+
+        # shrink the windows
+        window_left_x.shift
+        window_left_y.shift
+        window_left_pupil.shift
+        window_right_x.shift
+        window_right_y.shift
+        window_right_pupil.shift
+      end
+    end
+
+    @samples = result
+  end
+
   def save_bin(file)
     payload = [VERSION, self]
     Zlib::GzipWriter.open(file) { |f| Marshal.dump(payload, f) }
@@ -81,5 +133,11 @@ class Reading
       flags: @flags,
       row_bounds: @row_bounds
     }.to_json(*a)
+  end
+
+  private
+  def median(array)
+    array = array.compact.sort
+    array[array.length >> 1]
   end
 end

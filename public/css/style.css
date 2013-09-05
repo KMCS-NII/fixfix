@@ -44,9 +44,9 @@ html, body {
     background-color: blue;
     color: white; }
 
-#fix-options #scrap-changes, #fix-options.dirty #i-dt-options {
+#fix-options #scrap-changes, #fix-options.dirty #scrap-options {
   display: none; }
-#fix-options #i-dt-options, #fix-options.dirty #scrap-changes {
+#fix-options #scrap-options, #fix-options.dirty #scrap-changes {
   display: block; }
 
 #scrap-changes div {

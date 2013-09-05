@@ -40,18 +40,34 @@ module Routes
             # for normal editing, just grab the latest version
             reading = Reading.load_bin(file + '.edit') if params[:cache]
             unless reading
-              # for first display, try to load the original from cache,
-              # and cache if we can't
-              reading = Reading.load_bin(file + '.orig')
+              # try the smoothing cache, if the smoothing level matches
+              smoothing = params[:smoothing].to_i
+              cache_smoothing = File.open(file + '.smlv') { |f| f.gets.to_i } rescue nil
+              if cache_smoothing && cache_smoothing == smoothing
+                reading = Reading.load_bin(file + '.smoo')
+              end
+
               unless reading
-                reading = Reading.new(TobiiParser.new, file)
-                reading.save_bin(file + '.orig')
+                # try the original cache
+                reading = Reading.load_bin(file + '.orig')
+
+                unless reading
+                  # load the original
+                  reading = Reading.new(TobiiParser.new, file)
+                  reading.save_bin(file + '.orig')
+                end
+
+                # median smoothing
+                reading.apply_smoothing!(smoothing) unless smoothing <= 1
+                reading.flags[:smoothing] = smoothing
+                reading.save_bin(file + '.smoo')
+                File.open(file + '.smlv', 'w') { |f| f.puts smoothing }
               end
 
               # then find fixations if we needed them, and cache those
               # too as "edit version"
               if params[:dispersion]
-                # fixation detection requested
+                # fixation detection
                 reading.flags[:fixation] = Hash[[:dispersion, :duration, :blink].map { |key|
                   [key, params[key].to_f]
                 }]
