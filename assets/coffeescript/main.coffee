@@ -141,14 +141,13 @@ class window.FixFix
         svg = @svg._svg
 
         $(svg).mousewheel (evt, delta, dx, dy) =>
-            if evt.altKey || evt.metaKey
-                # zoom svg
-                ctm = @root.getCTM()
-                z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360)
-                p = event_point(svg, evt).matrixTransform(ctm.inverse())
-                k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y)
-                set_CTM(@root, ctm.multiply(k))
-                return false
+            # zoom svg
+            ctm = @root.getCTM()
+            z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360)
+            p = event_point(svg, evt).matrixTransform(ctm.inverse())
+            k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y)
+            set_CTM(@root, ctm.multiply(k))
+            return false
 
         $(svg).on('mousedown', (evt) =>
             # possibly initiate move/pan

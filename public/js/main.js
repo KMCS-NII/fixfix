@@ -227,14 +227,12 @@
       svg = this.svg._svg;
       $(svg).mousewheel(function(evt, delta, dx, dy) {
         var ctm, k, p, z;
-        if (evt.altKey || evt.metaKey) {
-          ctm = _this.root.getCTM();
-          z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360);
-          p = event_point(svg, evt).matrixTransform(ctm.inverse());
-          k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
-          set_CTM(_this.root, ctm.multiply(k));
-          return false;
-        }
+        ctm = _this.root.getCTM();
+        z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360);
+        p = event_point(svg, evt).matrixTransform(ctm.inverse());
+        k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
+        set_CTM(_this.root, ctm.multiply(k));
+        return false;
       });
       $(svg).on('mousedown', function(evt) {
         var $target, index, node_name, unctm;
