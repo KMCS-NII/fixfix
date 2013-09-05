@@ -227,27 +227,33 @@
       svg = this.svg._svg;
       $(svg).mousewheel(function(evt, delta, dx, dy) {
         var ctm, k, p, z;
-        if (evt.altKey || evt.metaKey) {
-          ctm = _this.root.getCTM();
-          z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360);
-          p = event_point(svg, evt).matrixTransform(ctm.inverse());
-          k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
-          set_CTM(_this.root, ctm.multiply(k));
-          return false;
-        }
+        ctm = _this.root.getCTM();
+        z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360);
+        p = event_point(svg, evt).matrixTransform(ctm.inverse());
+        k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
+        set_CTM(_this.root, ctm.multiply(k));
+        return false;
       });
-      $(svg).on('mousedown', 'circle', function(evt) {
-        var $target, unctm;
-        unctm = evt.target.getTransformToElement(svg).inverse();
-        $target = $(evt.target);
+      $(svg).on('mousedown', function(evt) {
+        var $target, index, node_name, unctm;
+        node_name = evt.target.nodeName;
+        unctm = _this.root.getCTM().inverse();
+        if (node_name === 'circle') {
+          $target = $(evt.target);
+          index = $target.data('index');
+          _this.data.gaze.highlight_row_of(index);
+        } else if (node_name === 'svg') {
+
+        } else {
+          return;
+        }
         _this.mousedown = {
-          index: $target.data('index'),
+          index: index,
           target: evt.target,
-          eye: $target.data('eye'),
+          eye: $target && $target.data('eye'),
           origin: event_point(svg, evt).matrixTransform(unctm),
           unctm: unctm
         };
-        _this.data.gaze.highlight_row_of(_this.mousedown.index);
         return _this.mousedrag = false;
       });
       $(svg).mousemove(function(evt) {
@@ -257,74 +263,79 @@
           _this.$svg.addClass('dragging');
         }
         if (_this.mousedrag) {
-          index = _this.mousedown.index;
-          unctm = _this.mousedown.target.getTransformToElement(svg).inverse();
+          unctm = _this.root.getCTM().inverse();
           point = event_point(svg, evt).matrixTransform(unctm);
-          eye = _this.mousedown.eye;
-          sample = _this.data.gaze.samples[index];
-          prev_sample = _this.data.gaze.samples[index - 1];
-          delta = {
-            x: point.x - sample[eye].x,
-            y: point.y - sample[eye].y
-          };
-          sample[eye].x = point.x;
-          sample[eye].y = point.y;
-          if (eye === 'center') {
-            sample.left.x += delta.x;
-            sample.left.y += delta.y;
-            sample.right.x += delta.x;
-            sample.right.y += delta.y;
+          if (_this.mousedown.index != null) {
+            index = _this.mousedown.index;
+            eye = _this.mousedown.eye;
+            sample = _this.data.gaze.samples[index];
+            prev_sample = _this.data.gaze.samples[index - 1];
+            delta = {
+              x: point.x - sample[eye].x,
+              y: point.y - sample[eye].y
+            };
+            sample[eye].x = point.x;
+            sample[eye].y = point.y;
+            if (eye === 'center') {
+              sample.left.x += delta.x;
+              sample.left.y += delta.y;
+              sample.right.x += delta.x;
+              sample.right.y += delta.y;
+            } else {
+              sample.center.x += delta.x / 2;
+              sample.center.y += delta.y / 2;
+            }
+            if (sample.center) {
+              move_point((_ref = sample.center) != null ? _ref.el : void 0, 'cx', 'cy', sample.center);
+              move_point((_ref1 = sample.center) != null ? _ref1.sel : void 0, 'x1', 'y1', sample.center);
+              move_point(prev_sample != null ? (_ref2 = prev_sample.center) != null ? _ref2.sel : void 0 : void 0, 'x2', 'y2', sample.center);
+            }
+            if (sample.left && eye !== 'right') {
+              move_point((_ref3 = sample.left) != null ? _ref3.el : void 0, 'cx', 'cy', sample.left);
+              move_point(sample != null ? sample.iel : void 0, 'x1', 'y1', sample.left);
+              move_point((_ref4 = sample.left) != null ? _ref4.sel : void 0, 'x1', 'y1', sample.left);
+              move_point(prev_sample != null ? prev_sample.left.sel : void 0, 'x2', 'y2', sample.left);
+            }
+            if (sample.right && eye !== 'left') {
+              move_point((_ref5 = sample.right) != null ? _ref5.el : void 0, 'cx', 'cy', sample.right);
+              move_point(sample != null ? sample.iel : void 0, 'x2', 'y2', sample.right);
+              move_point((_ref6 = sample.right) != null ? _ref6.sel : void 0, 'x1', 'y1', sample.right);
+              return move_point(prev_sample != null ? (_ref7 = prev_sample.right) != null ? _ref7.sel : void 0 : void 0, 'x2', 'y2', sample.right);
+            }
           } else {
-            sample.center.x += delta.x / 2;
-            sample.center.y += delta.y / 2;
-          }
-          if (sample.center) {
-            move_point((_ref = sample.center) != null ? _ref.el : void 0, 'cx', 'cy', sample.center);
-            move_point((_ref1 = sample.center) != null ? _ref1.sel : void 0, 'x1', 'y1', sample.center);
-            move_point(prev_sample != null ? (_ref2 = prev_sample.center) != null ? _ref2.sel : void 0 : void 0, 'x2', 'y2', sample.center);
-          }
-          if (sample.left && eye !== 'right') {
-            move_point((_ref3 = sample.left) != null ? _ref3.el : void 0, 'cx', 'cy', sample.left);
-            move_point(sample != null ? sample.iel : void 0, 'x1', 'y1', sample.left);
-            move_point((_ref4 = sample.left) != null ? _ref4.sel : void 0, 'x1', 'y1', sample.left);
-            move_point(prev_sample != null ? prev_sample.left.sel : void 0, 'x2', 'y2', sample.left);
-          }
-          if (sample.right && eye !== 'left') {
-            move_point((_ref5 = sample.right) != null ? _ref5.el : void 0, 'cx', 'cy', sample.right);
-            move_point(sample != null ? sample.iel : void 0, 'x2', 'y2', sample.right);
-            move_point((_ref6 = sample.right) != null ? _ref6.sel : void 0, 'x1', 'y1', sample.right);
-            return move_point(prev_sample != null ? (_ref7 = prev_sample.right) != null ? _ref7.sel : void 0 : void 0, 'x2', 'y2', sample.right);
+            return set_CTM(_this.root, unctm.inverse().translate(point.x - _this.mousedown.origin.x, point.y - _this.mousedown.origin.y));
           }
         }
       });
       return $(svg).mouseup(function(evt) {
         var payload, sample;
         if (_this.mousedrag) {
-          sample = _this.data.gaze.samples[_this.mousedown.index];
           _this.$svg.removeClass('dragging');
-          _this.$svg.trigger('dirty');
-          payload = {
-            file: _this.data.gaze.opts.file,
-            index: _this.mousedown.index
-          };
-          if (_this.mousedown.eye === 'center') {
-            payload.lx = sample.left.x;
-            payload.ly = sample.left.y;
-            payload.rx = sample.right.x;
-            payload.ry = sample.right.y;
-          } else {
-            payload.x = sample[_this.mousedown.eye].x;
-            payload.y = sample[_this.mousedown.eye].y;
+          if (_this.mousedown.index != null) {
+            sample = _this.data.gaze.samples[_this.mousedown.index];
+            _this.$svg.trigger('dirty');
+            payload = {
+              file: _this.data.gaze.opts.file,
+              changes: JSON.stringify([
+                {
+                  index: _this.mousedown.index,
+                  lx: sample.left.x,
+                  ly: sample.left.y,
+                  rx: sample.right.x,
+                  ry: sample.right.y
+                }
+              ])
+            };
+            $.ajax({
+              url: 'change',
+              type: 'post',
+              data: payload
+            });
+            _this.data.gaze.unhighlight();
           }
-          $.ajax({
-            url: 'change',
-            type: 'post',
-            data: payload
-          });
-          _this.mousedrag = false;
         }
-        _this.mousedown = false;
-        return _this.data.gaze.unhighlight();
+        _this.mousedrag = false;
+        return _this.mousedown = false;
       });
     };
 
@@ -455,16 +466,18 @@
       $gaze_selected = $();
       load_timer = null;
       set_opts = function() {
-        var blink, dispersion, duration;
+        var blink, dispersion, duration, smoothing;
         fixations = $('#i-dt').is(':checked');
         if (fixations) {
           dispersion = parseInt($('#dispersion_n').val(), 10);
           duration = parseInt($('#duration_n').val(), 10);
           blink = parseInt($('#blink_n').val(), 10);
+          smoothing = parseInt($('#smoothing_n').val(), 10);
           opts = {
             dispersion: dispersion,
             duration: duration,
-            blink: blink
+            blink: blink,
+            smoothing: smoothing
           };
         } else {
           opts = {};
@@ -504,7 +517,10 @@
         clearTimeout(load_timer);
         return load_timer = setTimeout(load, 500);
       };
-      $('#i-dt-options input[type="range"], #i-dt-options input[type="number"]').bind('input', function(evt) {
+      $('#smoothing, #smoothing_n').bind('input', function(evt) {
+        return load_with_delay();
+      });
+      $('#i-dt-options input').bind('input', function(evt) {
         if (fixations) {
           return load_with_delay();
         }
@@ -542,7 +558,8 @@
             $("#" + key + ", #" + key + "-n").val(value);
           }
         }
-        $('#fix-options').toggleClass('dirty', fixfix.data.gaze.flags.dirty);
+        $('#smoothing, #smoothing-n').val(fixfix.data.gaze.flags.smoothing);
+        $('#fix-options').toggleClass('dirty', !!fixfix.data.gaze.flags.dirty);
         $('#tsv-link').attr('href', "dl" + _this.gaze_file);
         return $('#download').css('display', 'block');
       });

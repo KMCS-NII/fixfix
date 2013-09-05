@@ -52,7 +52,7 @@ class I_DT
             right_max_y && right_min_y && (right_max_y - right_min_y > @dispersion))
       }
       
-      if !window.empty? && window.last.time - window.first.time >= @duration
+      if !window.empty? && (window_duration = window.last.time - window.first.time) >= @duration
         # if the captured window is long enough, it's a fixation
 
         # calculate the centroid, apply weighting using validity
@@ -103,6 +103,7 @@ class I_DT
               Gaze.new(nil, nil, nil, 4)
             end
         centroid = Sample.new(c_time / window.size, left, right)
+        centroid.duration = window_duration
         fixations << centroid
       else
         samples.shift
