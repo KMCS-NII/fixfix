@@ -150,17 +150,27 @@ class window.FixFix
                 set_CTM(@root, ctm.multiply(k))
                 return false
 
-        $(svg).on('mousedown', 'circle', (evt) =>
-            # possibly initiate drag/pan
-            unctm = evt.target.getTransformToElement(svg).inverse()
-            $target = $(evt.target)
+        $(svg).on('mousedown', (evt) =>
+            # possibly initiate move/pan
+            node_name = evt.target.nodeName
+            unctm = @root.getCTM().inverse()
+
+            if node_name == 'circle'
+                # move
+                $target = $(evt.target)
+                index = $target.data('index')
+                @data.gaze.highlight_row_of(index)
+            else if node_name == 'svg'
+            else
+                evt.stopPropagation()
+                return
+
             @mousedown =
-                index: $target.data('index')
+                index: index
                 target: evt.target
-                eye: $target.data('eye')
+                eye: $target && $target.data('eye')
                 origin: event_point(svg, evt).matrixTransform(unctm)
                 unctm: unctm
-            @data.gaze.highlight_row_of(@mousedown.index)
             @mousedrag = false
         )
 
@@ -170,76 +180,85 @@ class window.FixFix
                 # prevent cursor flicker
                 @$svg.addClass('dragging')
             if @mousedrag
-                # move the point, applying associated changes
-                index = @mousedown.index
                 unctm = @mousedown.target.getTransformToElement(svg).inverse()
                 point = event_point(svg, evt).matrixTransform(unctm)
-                eye = @mousedown.eye
-                sample = @data.gaze.samples[index]
-                prev_sample = @data.gaze.samples[index - 1]
 
-                delta =
-                    x: point.x - sample[eye].x
-                    y: point.y - sample[eye].y
-                sample[eye].x = point.x
-                sample[eye].y = point.y
+                if @mousedown.index?
+                    # move the point, applying associated changes
+                    index = @mousedown.index
+                    eye = @mousedown.eye
+                    sample = @data.gaze.samples[index]
+                    prev_sample = @data.gaze.samples[index - 1]
 
-                if eye == 'center'
-                    sample.left.x += delta.x
-                    sample.left.y += delta.y
-                    sample.right.x += delta.x
-                    sample.right.y += delta.y
+                    delta =
+                        x: point.x - sample[eye].x
+                        y: point.y - sample[eye].y
+                    sample[eye].x = point.x
+                    sample[eye].y = point.y
+
+                    if eye == 'center'
+                        sample.left.x += delta.x
+                        sample.left.y += delta.y
+                        sample.right.x += delta.x
+                        sample.right.y += delta.y
+                    else
+                        sample.center.x += delta.x / 2
+                        sample.center.y += delta.y / 2
+
+                    if sample.center
+                        move_point(sample.center?.el, 'cx', 'cy', sample.center)
+                        move_point(sample.center?.sel, 'x1', 'y1', sample.center)
+                        move_point(prev_sample?.center?.sel, 'x2', 'y2', sample.center)
+                    if sample.left and eye != 'right'
+                        move_point(sample.left?.el, 'cx', 'cy', sample.left)
+                        move_point(sample?.iel, 'x1', 'y1', sample.left)
+                        move_point(sample.left?.sel, 'x1', 'y1', sample.left)
+                        move_point(prev_sample?.left.sel, 'x2', 'y2', sample.left)
+                    if sample.right and eye != 'left'
+                        move_point(sample.right?.el, 'cx', 'cy', sample.right)
+                        move_point(sample?.iel, 'x2', 'y2', sample.right)
+                        move_point(sample.right?.sel, 'x1', 'y1', sample.right)
+                        move_point(prev_sample?.right?.sel, 'x2', 'y2', sample.right)
                 else
-                    sample.center.x += delta.x / 2
-                    sample.center.y += delta.y / 2
-
-                if sample.center
-                    move_point(sample.center?.el, 'cx', 'cy', sample.center)
-                    move_point(sample.center?.sel, 'x1', 'y1', sample.center)
-                    move_point(prev_sample?.center?.sel, 'x2', 'y2', sample.center)
-                if sample.left and eye != 'right'
-                    move_point(sample.left?.el, 'cx', 'cy', sample.left)
-                    move_point(sample?.iel, 'x1', 'y1', sample.left)
-                    move_point(sample.left?.sel, 'x1', 'y1', sample.left)
-                    move_point(prev_sample?.left.sel, 'x2', 'y2', sample.left)
-                if sample.right and eye != 'left'
-                    move_point(sample.right?.el, 'cx', 'cy', sample.right)
-                    move_point(sample?.iel, 'x2', 'y2', sample.right)
-                    move_point(sample.right?.sel, 'x1', 'y1', sample.right)
-                    move_point(prev_sample?.right?.sel, 'x2', 'y2', sample.right)
-            # TODO pan
+                    # pan the view
+                    set_CTM(@root,
+                            unctm.
+                                inverse().
+                                translate(
+                                    point.x - @mousedown.origin.x,
+                                    point.y - @mousedown.origin.y)
+                    )
         )
 
         $(svg).mouseup((evt) =>
             if @mousedrag
-                sample = @data.gaze.samples[@mousedown.index]
                 @$svg.removeClass('dragging')
-                @$svg.trigger('dirty')
 
-                # save
-                payload =
-                    file: @data.gaze.opts.file
-                    index: @mousedown.index
+                if @mousedown.index?
+                    # it was a move
+                    sample = @data.gaze.samples[@mousedown.index]
+                    @$svg.trigger('dirty')
 
-                if @mousedown.eye == 'center'
-                    payload.lx = sample.left.x
-                    payload.ly = sample.left.y
-                    payload.rx = sample.right.x
-                    payload.ry = sample.right.y
-                else
-                    payload.x = sample[@mousedown.eye].x
-                    payload.y = sample[@mousedown.eye].y
+                    # save
+                    payload =
+                        file: @data.gaze.opts.file
+                        changes: JSON.stringify([
+                            index: @mousedown.index
+                            lx: sample.left.x
+                            ly: sample.left.y
+                            rx: sample.right.x
+                            ry: sample.right.y
+                        ])
 
-                $.ajax
-                    url: 'change'
-                    type: 'post'
-                    data: payload
+                    $.ajax
+                        url: 'change'
+                        type: 'post'
+                        data: payload
 
-                @mousedrag = false
+                    @data.gaze.unhighlight()
 
-            # now forget the click happened
+            @mousedrag = false
             @mousedown = false
-            @data.gaze.unhighlight()
         )
 
     load: (file, type, opts) ->

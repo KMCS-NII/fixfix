@@ -72,11 +72,13 @@ module Routes
       ensure_sandboxed(file, 'data')
       reading = Reading.load_bin(file + '.edit')
       
-      sample = reading.samples[params[:index].to_i]
-      sample.left.x = params[:lx].to_f
-      sample.left.y = params[:ly].to_f
-      sample.right.x = params[:rx].to_f
-      sample.right.y = params[:ry].to_f
+      JSON.parse(params[:changes]).each do |change|
+        sample = reading.samples[change["index"]]
+        sample.left.x = change["lx"]
+        sample.left.y = change["ly"]
+        sample.right.x = change["rx"]
+        sample.right.y = change["ry"]
+      end
 
       reading.flags[:dirty] = true
       reading.save_bin(file + '.edit')
