@@ -12,7 +12,7 @@ class Word
   end
 
   def self.load(file)
-    File.open(file) do |f|
+    File.open(file, 'r::utf-8') do |f|
       f.each_line.
           reject { |line| line =~ /^\s*#/ }.
           map { |line| self.parse_line(line) }
