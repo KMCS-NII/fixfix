@@ -22,8 +22,8 @@ class Sample
       left.y,
       right.x,
       right.y,
-      (left.x + right.x) / 2,
-      (left.y + right.y) / 2,
+      if left.x && right.x then (left.x + right.x) / 2 else nil end,
+      if left.y && right.y then (left.y + right.y) / 2 else nil end,
       left.pupil,
       right.pupil,
       time
