@@ -11,16 +11,26 @@ class MedianRoller
   include Enumerable
 
   def initialize(window_size, data = nil, &value_proc)
+    @cmp_proc = lambda { |a, b| value_proc[a] <=> value_proc[b] }
+    reset
     @window_size = window_size
-    @index = 0
-    @nils = 0
-    @result = []
-    @window = []
     @data = data
     @value_proc = (value_proc ||= lambda { |x| x })
-    cmp_proc = lambda { |a, b| value_proc[a] <=> value_proc[b] }
-    @s = RBTree.new.readjust(cmp_proc)
-    @ge = RBTree.new.readjust(cmp_proc)
+    @medoid = false
+  end
+
+  def reset
+    @median = nil
+    @index = 0
+    @result = []
+    @window = []
+    @s = MultiRBTree.new.readjust(@cmp_proc)
+    @ge = MultiRBTree.new.readjust(@cmp_proc)
+  end
+
+  def medoid
+    @medoid = true
+    self
   end
 
   def add(element, &block)
@@ -28,12 +38,12 @@ class MedianRoller
       old_element = @window.shift
       old_value = @value_proc[old_element]
 
-      if old_value.nil?
-        @nils -= 1
-      elsif @median && old_value < @median
-        @s.delete(old_element)
-      else
-        @ge.delete(old_element)
+      unless old_value.nil?
+        if @median && old_value < @median
+          @s.delete(old_element)
+        else
+          @ge.delete(old_element)
+        end
       end
     end
 
@@ -41,15 +51,19 @@ class MedianRoller
     @window << element
     value = @value_proc[element]
 
-    if value.nil?
-      @nils += 1
-    elsif @median && value < @median
-      @s[element] = value
-    else
-      @ge[element] = value
+    unless value.nil?
+      if @median && value < @median
+        @s[element] = value
+      else
+        @ge[element] = value
+      end
     end
 
-    size_diff = @ge.size - @s.size
+    ge_size = @ge.size
+    s_size = @s.size
+    size_diff = ge_size - s_size
+    actual_size = ge_size + s_size
+
     if size_diff > 1
       move_element, move_value = *@ge.shift
       @s[move_element] = move_value
@@ -58,7 +72,14 @@ class MedianRoller
       @ge[move_element] = move_value
     end
 
-    @median = @ge.first.last
+    if actual_size == 0
+      @median = nil
+    elsif @medoid || actual_size.odd?
+      @median = @ge.first.last
+    else
+      @median = (@ge.first.last + @s.last.last) / 2.0
+    end
+
     if @index >= @window_size
       if block_given?
         yield @median
@@ -70,6 +91,7 @@ class MedianRoller
   end
 
   def each(&block)
+    reset
     enum = Enumerator.new do |yielder|
       @data.each do |element|
         add(element) { |median| yielder << median }
