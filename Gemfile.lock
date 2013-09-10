@@ -50,6 +50,7 @@ GEM
     rb-fsevent (0.9.3)
     rb-inotify (0.9.0)
       ffi (>= 0.5.0)
+    rbtree (0.4.1)
     sass (3.3.0.alpha.201)
       listen (~> 0.7)
     sinatra (1.4.3)
@@ -75,5 +76,6 @@ DEPENDENCIES
   rb-fchange
   rb-fsevent
   rb-inotify (~> 0.9)
+  rbtree
   sass
   sinatra

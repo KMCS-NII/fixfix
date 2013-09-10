@@ -57,6 +57,8 @@ module Routes
                   reading.save_bin(file + '.orig')
                 end
 
+                reading.discard_invalid!
+
                 # median smoothing
                 reading.apply_smoothing!(smoothing) unless smoothing <= 1
                 reading.flags[:smoothing] = smoothing

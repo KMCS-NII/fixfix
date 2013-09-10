@@ -8,14 +8,13 @@ class I_DT
 
   def find_fixations(samples)
     fixations = []
-    samples.reject! { |sample| !sample.time }
 
     until samples.empty?
       left_max_x = left_min_x = left_max_y = left_min_y = nil
       right_max_x = right_min_x = right_max_y = right_min_y = nil
 
       # skip over records that are invalid for both eyes as blinking time
-      blink = samples.take_while { |sample| sample.invalid? }
+      blink = samples.take_while { |sample| sample.no_eyes? }
       unless blink.empty?
         samples.shift(blink.size)
         blink_time = blink.last.time - blink.first.time
@@ -34,7 +33,7 @@ class I_DT
         # under the threshold; in such a case, completely
         # ignore the jumping eye data
 
-        unless invalid = sample.invalid?
+        unless blink = sample.no_eyes?
           left_max_x = [sample.left.x, left_max_x].compact.max
           left_min_x = [sample.left.x, left_min_x].compact.min
           left_max_y = [sample.left.y, left_max_y].compact.max
@@ -45,7 +44,7 @@ class I_DT
           right_min_y = [sample.right.y, right_min_y].compact.min
         end
 
-        !(invalid ||
+        !(blink ||
             left_max_x && left_min_x && (left_max_x - left_min_x > @dispersion) ||
             left_max_y && left_min_y && (left_max_y - left_min_y > @dispersion) ||
             right_max_x && right_min_x && (right_max_x - right_min_x > @dispersion) ||

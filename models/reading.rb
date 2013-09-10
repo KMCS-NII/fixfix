@@ -10,6 +10,10 @@ class Reading
     @flags = parser.flags
   end
 
+  def discard_invalid!()
+    @samples = @samples.reject(&:invalid?)
+  end
+
   def find_fixations!()
     fixation = @flags[:fixation]
     $stderr.puts @flags.inspect
@@ -81,7 +85,7 @@ class Reading
       if index >= window_size - 1
         mid_sample = @samples[index - window_size + window_half]
 
-        if mid_sample.invalid?
+        if mid_sample.no_eyes?
           result << mid_sample
         else
           # calculate median sample
