@@ -11,6 +11,10 @@ class Sample
     @time = time
   end
 
+  def no_eyes?
+    !@time || (@left.validity == 4 && @right.validity == 4)
+  end
+
   def invalid?
     (!@left.validity || @left.validity > VALIDITY_LIMIT) &&
         (!@right.validity || @right.validity > VALIDITY_LIMIT)
