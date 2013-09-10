@@ -63,52 +63,32 @@ class Reading
   end
 
   def apply_smoothing!(window_size)
-    window_half = window_size >> 1
+    left_x_medians = MedianRoller.new(window_size, @samples) { |sample| sample.left && sample.left.x }.each
+    left_y_medians = MedianRoller.new(window_size, @samples) { |sample| sample.left && sample.left.y }.each
+    left_pupil_medians = MedianRoller.new(window_size, @samples) { |sample| sample.left && sample.left.pupil }.each
+    right_x_medians = MedianRoller.new(window_size, @samples) { |sample| sample.right && sample.right.x }.each
+    right_y_medians = MedianRoller.new(window_size, @samples) { |sample| sample.right && sample.right.y }.each
+    right_pupil_medians = MedianRoller.new(window_size, @samples) { |sample| sample.right && sample.right.pupil }.each
+
     result = []
+    half_window = window_size / 2 - 1
 
-    window_left_x = []
-    window_left_y = []
-    window_left_pupil = []
-    window_right_x = []
-    window_right_y = []
-    window_right_pupil = []
+    from = window_size - half_window
+    to = @samples.size - half_window
+    (window_size - half_window - 1 .. @samples.size - half_window - 1).each do |index|
+      left_x = left_x_medians.next
+      left_y = left_y_medians.next
+      left_pupil = left_pupil_medians.next
+      right_x = right_x_medians.next
+      right_y = right_y_medians.next
+      right_pupil = right_pupil_medians.next
 
-    @samples.each_with_index do |sample, index|
-      # advance the windows
-      window_left_x << (sample.left && sample.left.x)
-      window_left_y << (sample.left && sample.left.y)
-      window_left_pupil << (sample.left && sample.left.pupil)
-      window_right_x << (sample.right && sample.right.x)
-      window_right_y << (sample.right && sample.right.y)
-      window_right_pupil << (sample.right && sample.right.pupil)
+      left = Gaze.new(left_x, left_y, left_pupil, left_x && left_y && left_pupil ? 0 : 4)
+      right = Gaze.new(right_x, right_y, right_pupil, right_x && right_y && right_pupil ? 0 : 4)
+      time = @samples[index].time
 
-      if index >= window_size - 1
-        mid_sample = @samples[index - window_size + window_half]
-
-        if mid_sample.no_eyes?
-          result << mid_sample
-        else
-          # calculate median sample
-          left_x = median(window_left_x)
-          left_y = median(window_left_y)
-          left_pupil = median(window_left_pupil)
-          right_x = median(window_right_x)
-          right_y = median(window_right_y)
-          right_pupil = median(window_right_pupil)
-
-          left = Gaze.new(left_x, left_y, left_pupil, (left_x && left_y) ? 0 : 4)
-          right = Gaze.new(right_x, right_y, right_pupil, (right_x && right_y) ? 0 : 4)
-          result << Sample.new(mid_sample.time, left, right)
-        end
-
-        # shrink the windows
-        window_left_x.shift
-        window_left_y.shift
-        window_left_pupil.shift
-        window_right_x.shift
-        window_right_y.shift
-        window_right_pupil.shift
-      end
+      result << Sample.new(time, left, right)
+      index += 1
     end
 
     @samples = result
