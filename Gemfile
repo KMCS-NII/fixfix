@@ -3,6 +3,7 @@ source "https://rubygems.org"
 gem "sinatra"
 gem 'emk-sinatra-url-for'
 gem "haml"
+gem "rbtree"
 
 group :development do
   gem 'pry'
