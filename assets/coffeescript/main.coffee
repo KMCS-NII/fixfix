@@ -61,7 +61,7 @@ class Sample
     render: (svg, parent, eye) ->
         gaze = this[eye]
         if gaze? and gaze.x? and gaze.y? and gaze.pupil?
-            this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
+            this[eye].el = svg.circle(parent, gaze.x, gaze.y, 3, {
                 id: eye[0] + @index
                 'data-index': @index
                 'data-eye': eye
@@ -102,17 +102,23 @@ class Reading
 
     toggle_class_on_range: (from, to, klass, onoff) ->
         return unless to? # must have elements
-        # XXX try converting to element list, picking from @samples,
-        # using `$ids.add(...)`
-        ids = []
-        for eye in ['l', 'c', 'r']
-            for index in [from .. to]
-                ids.push('#' + eye + index)
-            for index in [from .. to - 1]
-                ids.push('#s' + eye + index)
+
+        elements = []
         for index in [from .. to]
-            ids.push('#i' + index)
-        $(ids.join(', ')).toggleClass(klass, onoff)
+            sample = @samples[index]
+            for eye in ['left', 'center', 'right']
+                if (sample_eye = sample[eye])
+                    # fixations
+                    elements.push(sample_eye.el)
+                    # saccades, including the return sweeps on each end
+                    elements.push(sample_eye.sel)
+        if (sample = @samples[from - 1])
+            for eye in ['left', 'center', 'right']
+                if (sample_eye = sample[eye])
+                    # inter-eye lines
+                    elements.push(@samples[index].iel)
+
+        $(elements).toggleClass(klass, onoff)
 
     toggle_class_on_row_of: (index, klass, onoff) ->
         [from, to] = @find_row(index)
@@ -121,6 +127,10 @@ class Reading
     highlight_row_of: (index) ->
         $('.drawn').addClass('faint')
         @toggle_class_on_row_of(index, 'faint', false)
+
+    highlight_range: (from, to) ->
+        $('.drawn').addClass('faint')
+        @toggle_class_on_range(from, to, 'index', false)
 
     unhighlight: ->
         $('.faint').removeClass('faint')
@@ -154,22 +164,24 @@ class window.FixFix
             node_name = evt.target.nodeName
             unctm = @root.getCTM().inverse()
 
-            if node_name == 'circle'
-                # move
-                $target = $(evt.target)
-                index = $target.data('index')
-                @data.gaze.highlight_row_of(index)
-            else if node_name == 'svg'
-            else
-                return
+            switch evt.button
+                when 1
+                    if node_name == 'circle'
+                        # move
+                        $target = $(evt.target)
+                        index = $target.data('index')
+                        @data.gaze.highlight_row_of(index)
+                    else if node_name == 'svg'
+                    else
+                        return
 
-            @mousedown =
-                index: index
-                target: evt.target
-                eye: $target && $target.data('eye')
-                origin: event_point(svg, evt).matrixTransform(unctm)
-                unctm: unctm
-            @mousedrag = false
+                    @mousedown =
+                        index: index
+                        target: evt.target
+                        eye: $target && $target.data('eye')
+                        origin: event_point(svg, evt).matrixTransform(unctm)
+                        unctm: unctm
+                    @mousedrag = false
         )
 
         $(svg).mousemove((evt) =>
@@ -253,7 +265,7 @@ class window.FixFix
                         type: 'post'
                         data: payload
 
-                    @data.gaze.unhighlight()
+            @data.gaze.unhighlight()
 
             @mousedrag = false
             @mousedown = false
