@@ -102,7 +102,7 @@
       var gaze;
       gaze = this[eye];
       if ((gaze != null) && (gaze.x != null) && (gaze.y != null) && (gaze.pupil != null)) {
-        return this[eye].el = svg.circle(parent, gaze.x, gaze.y, gaze.pupil, {
+        return this[eye].el = svg.circle(parent, gaze.x, gaze.y, 3, {
           id: eye[0] + this.index,
           'data-index': this.index,
           'data-eye': eye,
@@ -168,25 +168,32 @@
     };
 
     Reading.prototype.toggle_class_on_range = function(from, to, klass, onoff) {
-      var eye, ids, index, _i, _j, _k, _l, _len, _ref, _ref1;
+      var elements, eye, index, sample, sample_eye, _i, _j, _k, _len, _len1, _ref, _ref1;
       if (to == null) {
         return;
       }
-      ids = [];
-      _ref = ['l', 'c', 'r'];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        eye = _ref[_i];
-        for (index = _j = from; from <= to ? _j <= to : _j >= to; index = from <= to ? ++_j : --_j) {
-          ids.push('#' + eye + index);
-        }
-        for (index = _k = from, _ref1 = to - 1; from <= _ref1 ? _k <= _ref1 : _k >= _ref1; index = from <= _ref1 ? ++_k : --_k) {
-          ids.push('#s' + eye + index);
+      elements = [];
+      for (index = _i = from; from <= to ? _i <= to : _i >= to; index = from <= to ? ++_i : --_i) {
+        sample = this.samples[index];
+        _ref = ['left', 'center', 'right'];
+        for (_j = 0, _len = _ref.length; _j < _len; _j++) {
+          eye = _ref[_j];
+          if ((sample_eye = sample[eye])) {
+            elements.push(sample_eye.el);
+            elements.push(sample_eye.sel);
+          }
         }
       }
-      for (index = _l = from; from <= to ? _l <= to : _l >= to; index = from <= to ? ++_l : --_l) {
-        ids.push('#i' + index);
+      if ((sample = this.samples[from - 1])) {
+        _ref1 = ['left', 'center', 'right'];
+        for (_k = 0, _len1 = _ref1.length; _k < _len1; _k++) {
+          eye = _ref1[_k];
+          if ((sample_eye = sample[eye])) {
+            elements.push(this.samples[index].iel);
+          }
+        }
       }
-      return $(ids.join(', ')).toggleClass(klass, onoff);
+      return $(elements).toggleClass(klass, onoff);
     };
 
     Reading.prototype.toggle_class_on_row_of = function(index, klass, onoff) {
@@ -198,6 +205,11 @@
     Reading.prototype.highlight_row_of = function(index) {
       $('.drawn').addClass('faint');
       return this.toggle_class_on_row_of(index, 'faint', false);
+    };
+
+    Reading.prototype.highlight_range = function(from, to) {
+      $('.drawn').addClass('faint');
+      return this.toggle_class_on_range(from, to, 'index', false);
     };
 
     Reading.prototype.unhighlight = function() {
@@ -238,23 +250,26 @@
         var $target, index, node_name, unctm;
         node_name = evt.target.nodeName;
         unctm = _this.root.getCTM().inverse();
-        if (node_name === 'circle') {
-          $target = $(evt.target);
-          index = $target.data('index');
-          _this.data.gaze.highlight_row_of(index);
-        } else if (node_name === 'svg') {
+        switch (evt.button) {
+          case 1:
+            if (node_name === 'circle') {
+              $target = $(evt.target);
+              index = $target.data('index');
+              _this.data.gaze.highlight_row_of(index);
+            } else if (node_name === 'svg') {
 
-        } else {
-          return;
+            } else {
+              return;
+            }
+            _this.mousedown = {
+              index: index,
+              target: evt.target,
+              eye: $target && $target.data('eye'),
+              origin: event_point(svg, evt).matrixTransform(unctm),
+              unctm: unctm
+            };
+            return _this.mousedrag = false;
         }
-        _this.mousedown = {
-          index: index,
-          target: evt.target,
-          eye: $target && $target.data('eye'),
-          origin: event_point(svg, evt).matrixTransform(unctm),
-          unctm: unctm
-        };
-        return _this.mousedrag = false;
       });
       $(svg).mousemove(function(evt) {
         var delta, eye, index, point, prev_sample, sample, unctm, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
@@ -331,9 +346,9 @@
               type: 'post',
               data: payload
             });
-            _this.data.gaze.unhighlight();
           }
         }
+        _this.data.gaze.unhighlight();
         _this.mousedrag = false;
         return _this.mousedown = false;
       });
