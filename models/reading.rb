@@ -3,7 +3,7 @@ require 'csv'
 class Reading
   attr_accessor :flags, :samples
 
-  VERSION = [0, 0, 0]
+  VERSION = [0, 0, 1]
 
   def initialize(parser, filename)
     @samples = parser.parse(filename)
@@ -11,7 +11,7 @@ class Reading
   end
 
   def discard_invalid!()
-    @samples = @samples.reject(&:invalid?)
+    @samples = @samples.select(&:valid?)
   end
 
   def find_fixations!()
@@ -59,7 +59,7 @@ class Reading
       last_sample = sample
       last_index = i
     end
-    @row_bounds << [from, @samples.size] unless streak
+    @row_bounds << [from, @samples.size - 1] unless streak
   end
 
   def apply_smoothing!(window_size)
@@ -73,8 +73,6 @@ class Reading
     result = []
     half_window = window_size / 2 - 1
 
-    from = window_size - half_window
-    to = @samples.size - half_window
     (window_size - half_window - 1 .. @samples.size - half_window - 1).each do |index|
       left_x = left_x_medians.next
       left_y = left_y_medians.next
@@ -97,7 +95,6 @@ class Reading
   def save_bin(file)
     payload = [VERSION, self]
     Zlib::GzipWriter.open(file) { |f| Marshal.dump(payload, f) }
-    $stderr.puts "Saving to #{file}"
   end
 
   def self.load_bin(file)

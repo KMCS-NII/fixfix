@@ -2,6 +2,15 @@
 
 ZOOM_SENSITIVITY = 0.2
 
+# contextMenu
+$.contextMenu.shadow = false
+$.contextMenu.theme =
+    if navigator.platform.match(/Mac/) then "osx"
+    else if navigator.platform.match(/Linux/) then "human"
+    else if navigator.platform.match(/Win/) then "vista"
+    else "default"
+
+# pan/zoom support
 event_point = (svg, evt) ->
     p = svg.createSVGPoint()
     p.x = evt.clientX
@@ -17,6 +26,7 @@ set_CTM = (element, matrix) ->
     element.transform.baseVal.initialize(
         element.ownerSVGElement.createSVGTransformFromMatrix(matrix))
 
+# tree hierarchy for SVG elements, hoping to speed up layout task
 treedraw = (svg, parent, size, factor, callback) ->
     return unless size
     parents = [parent]
@@ -31,6 +41,8 @@ treedraw = (svg, parent, size, factor, callback) ->
             size -= 1
             callback(parent, size)
     recurse(parent, Math.ceil(Math.log(size) / Math.log(factor)))
+
+
 
 class Word
     constructor: (@word, @left, @top, @right, @bottom) ->
@@ -60,12 +72,13 @@ class Sample
 
     render: (svg, parent, eye) ->
         gaze = this[eye]
+        frozen = if @frozen then ' frozen' else ''
         if gaze? and gaze.x? and gaze.y? and gaze.pupil?
             this[eye].el = svg.circle(parent, gaze.x, gaze.y, 3, {
                 id: eye[0] + @index
                 'data-index': @index
                 'data-eye': eye
-                class: 'drawn ' + eye
+                class: 'drawn ' + eye + frozen
             })
 
     render_intereye: (svg, parent) ->
@@ -89,8 +102,16 @@ class Sample
                 class: klass
             })
 
+    fix: (value = true) ->
+        this.frozen = value
+        circles = $([this.left?.el, this.center?.el, this.right?.el])
+        circles.toggleClass('frozen', value)
+
 class Reading
     constructor: (@samples, @flags, @row_bounds) ->
+        for [from, to] in @row_bounds
+            @samples[from].frozen = true
+            @samples[to].frozen = true
 
     find_row: (index) ->
         for [from, to] in @row_bounds
@@ -104,19 +125,20 @@ class Reading
         return unless to? # must have elements
 
         elements = []
+        if (sample = @samples[from - 1])
+            for eye in ['left', 'center', 'right']
+                if (sample_eye = sample[eye])
+                    # first saccade
+                    elements.push(sample.sel)
         for index in [from .. to]
             sample = @samples[index]
+            elements.push(sample.iel)
             for eye in ['left', 'center', 'right']
                 if (sample_eye = sample[eye])
                     # fixations
                     elements.push(sample_eye.el)
                     # saccades, including the return sweeps on each end
                     elements.push(sample_eye.sel)
-        if (sample = @samples[from - 1])
-            for eye in ['left', 'center', 'right']
-                if (sample_eye = sample[eye])
-                    # inter-eye lines
-                    elements.push(@samples[index].iel)
 
         $(elements).toggleClass(klass, onoff)
 
@@ -147,6 +169,7 @@ class window.FixFix
         @root = @svg.group()
         @bb_group = @svg.group(@root, 'bb')
         @gaze_group = @svg.group(@root, 'gaze')
+        @single_mode = false
 
         svg = @svg._svg
 
@@ -171,16 +194,27 @@ class window.FixFix
                         $target = $(evt.target)
                         index = $target.data('index')
                         @data.gaze.highlight_row_of(index)
+
+                        if @single_mode
+                            from = to = index
+                        else
+                            [from, to] = [row_from, row_to] = @data.gaze.find_row(index)
+                            for from in [index .. row_from]
+                                break if from == row_from or (from != index and @data.gaze.samples[from].frozen)
+                            for to in [index .. row_to]
+                                break if to == row_to or (to != index and @data.gaze.samples[to].frozen)
+
                     else if node_name == 'svg'
                     else
                         return
 
                     @mousedown =
-                        index: index
-                        target: evt.target
-                        eye: $target && $target.data('eye')
-                        origin: event_point(svg, evt).matrixTransform(unctm)
                         unctm: unctm
+                        origin: event_point(svg, evt).matrixTransform(unctm)
+                        index: index
+                        target: index && evt.target
+                        eye: index && $target.data('eye')
+                        row: [from, to]
                     @mousedrag = false
         )
 
@@ -195,40 +229,57 @@ class window.FixFix
 
                 if @mousedown.index?
                     # move the point, applying associated changes
-                    index = @mousedown.index
                     eye = @mousedown.eye
-                    sample = @data.gaze.samples[index]
-                    prev_sample = @data.gaze.samples[index - 1]
 
-                    delta =
+                    [from, to] = @mousedown.row
+                    sample = @data.gaze.samples[@mousedown.index]
+                    point_delta =
                         x: point.x - sample[eye].x
                         y: point.y - sample[eye].y
-                    sample[eye].x = point.x
-                    sample[eye].y = point.y
+                    extent = from - @mousedown.index
+                    a_x = -point_delta.x / (extent * extent)
+                    a_y = -point_delta.y / (extent * extent)
+                    prev_sample = @data.gaze.samples[from - 1]
+                    for index in [from .. to]
+                        sample = @data.gaze.samples[index]
+                        index_diff = index - @mousedown.index
+                        if index_diff == 0
+                            extent = to - @mousedown.index
+                            a_x = -point_delta.x / (extent * extent)
+                            a_y = -point_delta.y / (extent * extent)
+                            delta = point_delta
+                        else
+                            delta =
+                                x: a_x * index_diff * index_diff + point_delta.x
+                                y: a_y * index_diff * index_diff + point_delta.y
 
-                    if eye == 'center'
-                        sample.left.x += delta.x
-                        sample.left.y += delta.y
-                        sample.right.x += delta.x
-                        sample.right.y += delta.y
-                    else
-                        sample.center.x += delta.x / 2
-                        sample.center.y += delta.y / 2
+                        sample[eye].x += delta.x
+                        sample[eye].y += delta.y
+                        if eye == 'center'
+                            sample.left.x += delta.x
+                            sample.left.y += delta.y
+                            sample.right.x += delta.x
+                            sample.right.y += delta.y
+                        else
+                            sample.center.x += delta.x / 2
+                            sample.center.y += delta.y / 2
 
-                    if sample.center
-                        move_point(sample.center?.el, 'cx', 'cy', sample.center)
-                        move_point(sample.center?.sel, 'x1', 'y1', sample.center)
-                        move_point(prev_sample?.center?.sel, 'x2', 'y2', sample.center)
-                    if sample.left and eye != 'right'
-                        move_point(sample.left?.el, 'cx', 'cy', sample.left)
-                        move_point(sample?.iel, 'x1', 'y1', sample.left)
-                        move_point(sample.left?.sel, 'x1', 'y1', sample.left)
-                        move_point(prev_sample?.left.sel, 'x2', 'y2', sample.left)
-                    if sample.right and eye != 'left'
-                        move_point(sample.right?.el, 'cx', 'cy', sample.right)
-                        move_point(sample?.iel, 'x2', 'y2', sample.right)
-                        move_point(sample.right?.sel, 'x1', 'y1', sample.right)
-                        move_point(prev_sample?.right?.sel, 'x2', 'y2', sample.right)
+                        if sample.center
+                            move_point(sample.center?.el, 'cx', 'cy', sample.center)
+                            move_point(sample.center?.sel, 'x1', 'y1', sample.center)
+                            move_point(prev_sample?.center?.sel, 'x2', 'y2', sample.center)
+                        if sample.left and eye != 'right'
+                            move_point(sample.left?.el, 'cx', 'cy', sample.left)
+                            move_point(sample?.iel, 'x1', 'y1', sample.left)
+                            move_point(sample.left?.sel, 'x1', 'y1', sample.left)
+                            move_point(prev_sample?.left.sel, 'x2', 'y2', sample.left)
+                        if sample.right and eye != 'left'
+                            move_point(sample.right?.el, 'cx', 'cy', sample.right)
+                            move_point(sample?.iel, 'x2', 'y2', sample.right)
+                            move_point(sample.right?.sel, 'x1', 'y1', sample.right)
+                            move_point(prev_sample?.right?.sel, 'x2', 'y2', sample.right)
+
+                        prev_sample = sample
                 else
                     # pan the view
                     set_CTM(@root,
@@ -247,25 +298,33 @@ class window.FixFix
                 if @mousedown.index?
                     # it was a move
                     sample = @data.gaze.samples[@mousedown.index]
+                    sample.fix()
                     @$svg.trigger('dirty')
 
                     # save
-                    payload =
-                        file: @data.gaze.opts.file
-                        changes: JSON.stringify([
-                            index: @mousedown.index
+                    changes = []
+                    [from, to] = @mousedown.row
+                    for index in [from .. to]
+                        sample = @data.gaze.samples[index]
+                        changes.push({
+                            index: index
                             lx: sample.left.x
                             ly: sample.left.y
                             rx: sample.right.x
                             ry: sample.right.y
-                        ])
+                        })
+
+                    payload =
+                        file: @data.gaze.opts.file
+                        changes: JSON.stringify(changes)
 
                     $.ajax
                         url: 'change'
                         type: 'post'
                         data: payload
 
-            @data.gaze.unhighlight()
+            if @data?.gaze?
+                @data.gaze.unhighlight()
 
             @mousedrag = false
             @mousedown = false
@@ -442,5 +501,43 @@ class window.FileBrowser
         $('#scrap-changes-btn').click (evt) =>
             load()
             fixfix.$svg.trigger('clean')
+
+        circle_cmenu = [
+            {'Freeze': {
+                onclick: (menuitem, menu, menuevent) ->
+                    sample = fixfix.data.gaze.samples[parseInt($(this).data('index'), 10)]
+                    sample.fix(!sample.frozen)
+                    true
+                title: 'Prevent from being moved automatically'
+                beforeShow: (menuitem) ->
+                    index = parseInt($(this).data('index'), 10)
+                    sample = fixfix.data.gaze.samples[index]
+                    [from, to] = fixfix.data.gaze.find_row(index)
+                    disabled = index <= from or index >= to
+                    menuitem.$element.toggleClass('context-menu-item-disabled', disabled)
+                    menuitem.$element.toggleClass('checked', !!sample.frozen)
+            }},
+            {'Unfreeze Row': {
+                onclick: (menuitem, menu, menuevent) ->
+                    [from, to] = fixfix.data.gaze.find_row(parseInt($(this).data('index'), 10))
+                    for index in [from + 1 ... to]
+                        fixfix.data.gaze.samples[index].fix(false)
+                    true
+                title: 'Unfreeze all points in this row'
+            }},
+        ]
+        $(fixfix.svg._svg).contextMenu(circle_cmenu, 'circle')
+
+        svg_cmenu = [
+            {'Single Mode': {
+                onclick: (menuitem, menu, menuevent) ->
+                    fixfix.single_mode = !fixfix.single_mode
+                    true
+                title: 'Treat all points as frozen, so each operation only affects one'
+                beforeShow: (menuitem) ->
+                    menuitem.$element.toggleClass('checked', fixfix.single_mode)
+            }},
+        ]
+        $('body').contextMenu(svg_cmenu)
 
         set_opts()
