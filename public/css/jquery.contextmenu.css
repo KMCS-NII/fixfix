@@ -1,3 +1,7 @@
+.context-menu-item.checked .context-menu-item-inner {
+  background-image: url(cmenu/checkmark.gif) !important;
+}
+
 /* Classic Windows Theme (default) */
 /* =============================== */
 .context-menu-theme-default {

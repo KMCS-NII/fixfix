@@ -271,7 +271,11 @@
 	$.fn.contextMenu = function(menu,context,options) {
 		var cmenu = $.contextMenu.create(menu,options);
 		return this.each(function(){
-			$(this).on('contextmenu',context,function(e){cmenu.show(this,e);return false;});
+      if(context) {
+        $(this).on('contextmenu',context,function(e){cmenu.show(this,e);return false;});
+      } else {
+        $(this).on('contextmenu',function(e){cmenu.show(this,e);return false;});
+      }
 		});
 	};
 })(jQuery);

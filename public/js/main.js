@@ -4,6 +4,10 @@
 
   ZOOM_SENSITIVITY = 0.2;
 
+  $.contextMenu.shadow = false;
+
+  $.contextMenu.theme = navigator.platform.match(/Mac/) ? "osx" : navigator.platform.match(/Linux/) ? "human" : navigator.platform.match(/Win/) ? "vista" : "default";
+
   event_point = function(svg, evt) {
     var p;
     p = svg.createSVGPoint();
@@ -99,14 +103,15 @@
     };
 
     Sample.prototype.render = function(svg, parent, eye) {
-      var gaze;
+      var frozen, gaze;
       gaze = this[eye];
+      frozen = this.frozen ? ' frozen' : '';
       if ((gaze != null) && (gaze.x != null) && (gaze.y != null) && (gaze.pupil != null)) {
         return this[eye].el = svg.circle(parent, gaze.x, gaze.y, 3, {
           id: eye[0] + this.index,
           'data-index': this.index,
           'data-eye': eye,
-          "class": 'drawn ' + eye
+          "class": 'drawn ' + eye + frozen
         });
       }
     };
@@ -141,15 +146,32 @@
       }
     };
 
+    Sample.prototype.fix = function(value) {
+      var circles, _ref, _ref1, _ref2;
+      if (value == null) {
+        value = true;
+      }
+      this.frozen = value;
+      circles = $([(_ref = this.left) != null ? _ref.el : void 0, (_ref1 = this.center) != null ? _ref1.el : void 0, (_ref2 = this.right) != null ? _ref2.el : void 0]);
+      return circles.toggleClass('frozen', value);
+    };
+
     return Sample;
 
   })();
 
   Reading = (function() {
     function Reading(samples, flags, row_bounds) {
+      var from, to, _i, _len, _ref, _ref1;
       this.samples = samples;
       this.flags = flags;
       this.row_bounds = row_bounds;
+      _ref = this.row_bounds;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        _ref1 = _ref[_i], from = _ref1[0], to = _ref1[1];
+        this.samples[from].frozen = true;
+        this.samples[to].frozen = true;
+      }
     }
 
     Reading.prototype.find_row = function(index) {
@@ -173,23 +195,24 @@
         return;
       }
       elements = [];
-      for (index = _i = from; from <= to ? _i <= to : _i >= to; index = from <= to ? ++_i : --_i) {
-        sample = this.samples[index];
+      if ((sample = this.samples[from - 1])) {
         _ref = ['left', 'center', 'right'];
-        for (_j = 0, _len = _ref.length; _j < _len; _j++) {
-          eye = _ref[_j];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          eye = _ref[_i];
           if ((sample_eye = sample[eye])) {
-            elements.push(sample_eye.el);
-            elements.push(sample_eye.sel);
+            elements.push(sample.sel);
           }
         }
       }
-      if ((sample = this.samples[from - 1])) {
+      for (index = _j = from; from <= to ? _j <= to : _j >= to; index = from <= to ? ++_j : --_j) {
+        sample = this.samples[index];
+        elements.push(sample.iel);
         _ref1 = ['left', 'center', 'right'];
         for (_k = 0, _len1 = _ref1.length; _k < _len1; _k++) {
           eye = _ref1[_k];
           if ((sample_eye = sample[eye])) {
-            elements.push(this.samples[index].iel);
+            elements.push(sample_eye.el);
+            elements.push(sample_eye.sel);
           }
         }
       }
@@ -236,6 +259,7 @@
       this.root = this.svg.group();
       this.bb_group = this.svg.group(this.root, 'bb');
       this.gaze_group = this.svg.group(this.root, 'gaze');
+      this.single_mode = false;
       svg = this.svg._svg;
       $(svg).mousewheel(function(evt, delta, dx, dy) {
         var ctm, k, p, z;
@@ -247,7 +271,7 @@
         return false;
       });
       $(svg).on('mousedown', function(evt) {
-        var $target, index, node_name, unctm;
+        var $target, from, index, node_name, row_from, row_to, to, unctm, _i, _j, _ref, _ref1;
         node_name = evt.target.nodeName;
         unctm = _this.root.getCTM().inverse();
         switch (evt.button) {
@@ -256,23 +280,39 @@
               $target = $(evt.target);
               index = $target.data('index');
               _this.data.gaze.highlight_row_of(index);
+              if (_this.single_mode) {
+                from = to = index;
+              } else {
+                _ref1 = (_ref = _this.data.gaze.find_row(index), row_from = _ref[0], row_to = _ref[1], _ref), from = _ref1[0], to = _ref1[1];
+                for (from = _i = index; index <= row_from ? _i <= row_from : _i >= row_from; from = index <= row_from ? ++_i : --_i) {
+                  if (from === row_from || (from !== index && _this.data.gaze.samples[from].frozen)) {
+                    break;
+                  }
+                }
+                for (to = _j = index; index <= row_to ? _j <= row_to : _j >= row_to; to = index <= row_to ? ++_j : --_j) {
+                  if (to === row_to || (to !== index && _this.data.gaze.samples[to].frozen)) {
+                    break;
+                  }
+                }
+              }
             } else if (node_name === 'svg') {
 
             } else {
               return;
             }
             _this.mousedown = {
-              index: index,
-              target: evt.target,
-              eye: $target && $target.data('eye'),
+              unctm: unctm,
               origin: event_point(svg, evt).matrixTransform(unctm),
-              unctm: unctm
+              index: index,
+              target: index && evt.target,
+              eye: index && $target.data('eye'),
+              row: [from, to]
             };
             return _this.mousedrag = false;
         }
       });
       $(svg).mousemove(function(evt) {
-        var delta, eye, index, point, prev_sample, sample, unctm, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
+        var a_x, a_y, delta, extent, eye, from, index, index_diff, point, point_delta, prev_sample, sample, to, unctm, _i, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _results;
         if (_this.mousedown) {
           _this.mousedrag = true;
           _this.$svg.addClass('dragging');
@@ -281,65 +321,91 @@
           unctm = _this.root.getCTM().inverse();
           point = event_point(svg, evt).matrixTransform(unctm);
           if (_this.mousedown.index != null) {
-            index = _this.mousedown.index;
             eye = _this.mousedown.eye;
-            sample = _this.data.gaze.samples[index];
-            prev_sample = _this.data.gaze.samples[index - 1];
-            delta = {
+            _ref = _this.mousedown.row, from = _ref[0], to = _ref[1];
+            sample = _this.data.gaze.samples[_this.mousedown.index];
+            point_delta = {
               x: point.x - sample[eye].x,
               y: point.y - sample[eye].y
             };
-            sample[eye].x = point.x;
-            sample[eye].y = point.y;
-            if (eye === 'center') {
-              sample.left.x += delta.x;
-              sample.left.y += delta.y;
-              sample.right.x += delta.x;
-              sample.right.y += delta.y;
-            } else {
-              sample.center.x += delta.x / 2;
-              sample.center.y += delta.y / 2;
+            extent = from - _this.mousedown.index;
+            a_x = -point_delta.x / (extent * extent);
+            a_y = -point_delta.y / (extent * extent);
+            prev_sample = _this.data.gaze.samples[from - 1];
+            _results = [];
+            for (index = _i = from; from <= to ? _i <= to : _i >= to; index = from <= to ? ++_i : --_i) {
+              sample = _this.data.gaze.samples[index];
+              index_diff = index - _this.mousedown.index;
+              if (index_diff === 0) {
+                extent = to - _this.mousedown.index;
+                a_x = -point_delta.x / (extent * extent);
+                a_y = -point_delta.y / (extent * extent);
+                delta = point_delta;
+              } else {
+                delta = {
+                  x: a_x * index_diff * index_diff + point_delta.x,
+                  y: a_y * index_diff * index_diff + point_delta.y
+                };
+              }
+              sample[eye].x += delta.x;
+              sample[eye].y += delta.y;
+              if (eye === 'center') {
+                sample.left.x += delta.x;
+                sample.left.y += delta.y;
+                sample.right.x += delta.x;
+                sample.right.y += delta.y;
+              } else {
+                sample.center.x += delta.x / 2;
+                sample.center.y += delta.y / 2;
+              }
+              if (sample.center) {
+                move_point((_ref1 = sample.center) != null ? _ref1.el : void 0, 'cx', 'cy', sample.center);
+                move_point((_ref2 = sample.center) != null ? _ref2.sel : void 0, 'x1', 'y1', sample.center);
+                move_point(prev_sample != null ? (_ref3 = prev_sample.center) != null ? _ref3.sel : void 0 : void 0, 'x2', 'y2', sample.center);
+              }
+              if (sample.left && eye !== 'right') {
+                move_point((_ref4 = sample.left) != null ? _ref4.el : void 0, 'cx', 'cy', sample.left);
+                move_point(sample != null ? sample.iel : void 0, 'x1', 'y1', sample.left);
+                move_point((_ref5 = sample.left) != null ? _ref5.sel : void 0, 'x1', 'y1', sample.left);
+                move_point(prev_sample != null ? prev_sample.left.sel : void 0, 'x2', 'y2', sample.left);
+              }
+              if (sample.right && eye !== 'left') {
+                move_point((_ref6 = sample.right) != null ? _ref6.el : void 0, 'cx', 'cy', sample.right);
+                move_point(sample != null ? sample.iel : void 0, 'x2', 'y2', sample.right);
+                move_point((_ref7 = sample.right) != null ? _ref7.sel : void 0, 'x1', 'y1', sample.right);
+                move_point(prev_sample != null ? (_ref8 = prev_sample.right) != null ? _ref8.sel : void 0 : void 0, 'x2', 'y2', sample.right);
+              }
+              _results.push(prev_sample = sample);
             }
-            if (sample.center) {
-              move_point((_ref = sample.center) != null ? _ref.el : void 0, 'cx', 'cy', sample.center);
-              move_point((_ref1 = sample.center) != null ? _ref1.sel : void 0, 'x1', 'y1', sample.center);
-              move_point(prev_sample != null ? (_ref2 = prev_sample.center) != null ? _ref2.sel : void 0 : void 0, 'x2', 'y2', sample.center);
-            }
-            if (sample.left && eye !== 'right') {
-              move_point((_ref3 = sample.left) != null ? _ref3.el : void 0, 'cx', 'cy', sample.left);
-              move_point(sample != null ? sample.iel : void 0, 'x1', 'y1', sample.left);
-              move_point((_ref4 = sample.left) != null ? _ref4.sel : void 0, 'x1', 'y1', sample.left);
-              move_point(prev_sample != null ? prev_sample.left.sel : void 0, 'x2', 'y2', sample.left);
-            }
-            if (sample.right && eye !== 'left') {
-              move_point((_ref5 = sample.right) != null ? _ref5.el : void 0, 'cx', 'cy', sample.right);
-              move_point(sample != null ? sample.iel : void 0, 'x2', 'y2', sample.right);
-              move_point((_ref6 = sample.right) != null ? _ref6.sel : void 0, 'x1', 'y1', sample.right);
-              return move_point(prev_sample != null ? (_ref7 = prev_sample.right) != null ? _ref7.sel : void 0 : void 0, 'x2', 'y2', sample.right);
-            }
+            return _results;
           } else {
             return set_CTM(_this.root, unctm.inverse().translate(point.x - _this.mousedown.origin.x, point.y - _this.mousedown.origin.y));
           }
         }
       });
       return $(svg).mouseup(function(evt) {
-        var payload, sample;
+        var changes, from, index, payload, sample, to, _i, _ref, _ref1;
         if (_this.mousedrag) {
           _this.$svg.removeClass('dragging');
           if (_this.mousedown.index != null) {
             sample = _this.data.gaze.samples[_this.mousedown.index];
+            sample.fix();
             _this.$svg.trigger('dirty');
+            changes = [];
+            _ref = _this.mousedown.row, from = _ref[0], to = _ref[1];
+            for (index = _i = from; from <= to ? _i <= to : _i >= to; index = from <= to ? ++_i : --_i) {
+              sample = _this.data.gaze.samples[index];
+              changes.push({
+                index: index,
+                lx: sample.left.x,
+                ly: sample.left.y,
+                rx: sample.right.x,
+                ry: sample.right.y
+              });
+            }
             payload = {
               file: _this.data.gaze.opts.file,
-              changes: JSON.stringify([
-                {
-                  index: _this.mousedown.index,
-                  lx: sample.left.x,
-                  ly: sample.left.y,
-                  rx: sample.right.x,
-                  ry: sample.right.y
-                }
-              ])
+              changes: JSON.stringify(changes)
             };
             $.ajax({
               url: 'change',
@@ -348,7 +414,9 @@
             });
           }
         }
-        _this.data.gaze.unhighlight();
+        if (((_ref1 = _this.data) != null ? _ref1.gaze : void 0) != null) {
+          _this.data.gaze.unhighlight();
+        }
         _this.mousedrag = false;
         return _this.mousedown = false;
       });
@@ -473,7 +541,7 @@
 
   window.FileBrowser = (function() {
     function FileBrowser(fixfix, bb_browser, gaze_browser) {
-      var $bb_selected, $gaze_selected, fixations, load, load_timer, load_with_delay, opts, set_opts,
+      var $bb_selected, $gaze_selected, circle_cmenu, fixations, load, load_timer, load_with_delay, opts, set_opts, svg_cmenu,
         _this = this;
       opts = {};
       fixations = null;
@@ -585,6 +653,56 @@
         load();
         return fixfix.$svg.trigger('clean');
       });
+      circle_cmenu = [
+        {
+          'Freeze': {
+            onclick: function(menuitem, menu, menuevent) {
+              var sample;
+              sample = fixfix.data.gaze.samples[parseInt($(this).data('index'), 10)];
+              sample.fix(!sample.frozen);
+              return true;
+            },
+            title: 'Prevent from being moved automatically',
+            beforeShow: function(menuitem) {
+              var disabled, from, index, sample, to, _ref;
+              index = parseInt($(this).data('index'), 10);
+              sample = fixfix.data.gaze.samples[index];
+              _ref = fixfix.data.gaze.find_row(index), from = _ref[0], to = _ref[1];
+              disabled = index <= from || index >= to;
+              menuitem.$element.toggleClass('context-menu-item-disabled', disabled);
+              return menuitem.$element.toggleClass('checked', !!sample.frozen);
+            }
+          }
+        }, {
+          'Unfreeze Row': {
+            onclick: function(menuitem, menu, menuevent) {
+              var from, index, to, _i, _ref, _ref1;
+              _ref = fixfix.data.gaze.find_row(parseInt($(this).data('index'), 10)), from = _ref[0], to = _ref[1];
+              for (index = _i = _ref1 = from + 1; _ref1 <= to ? _i < to : _i > to; index = _ref1 <= to ? ++_i : --_i) {
+                fixfix.data.gaze.samples[index].fix(false);
+              }
+              return true;
+            },
+            title: 'Unfreeze all points in this row'
+          }
+        }
+      ];
+      $(fixfix.svg._svg).contextMenu(circle_cmenu, 'circle');
+      svg_cmenu = [
+        {
+          'Single Mode': {
+            onclick: function(menuitem, menu, menuevent) {
+              fixfix.single_mode = !fixfix.single_mode;
+              return true;
+            },
+            title: 'Treat all points as frozen, so each operation only affects one',
+            beforeShow: function(menuitem) {
+              return menuitem.$element.toggleClass('checked', fixfix.single_mode);
+            }
+          }
+        }
+      ];
+      $('body').contextMenu(svg_cmenu);
       set_opts();
     }
 

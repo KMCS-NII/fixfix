@@ -3,8 +3,6 @@ require 'json'
 class Sample
   attr_accessor :left, :right, :time, :blink, :rs, :duration
 
-  VALIDITY_LIMIT = 0
-
   def initialize(time, left, right)
     @left = left
     @right = right
@@ -12,12 +10,13 @@ class Sample
   end
 
   def no_eyes?
-    !@time || (@left.validity == 4 && @right.validity == 4)
+    @left.validity == 4
   end
 
-  def invalid?
-    (!@left.validity || @left.validity > VALIDITY_LIMIT) &&
-        (!@right.validity || @right.validity > VALIDITY_LIMIT)
+  def valid?
+    @time &&
+        @left.validity && (@left.validity == 0 || @left.validity == 4) &&
+        @right.validity && @right.validity == @left.validity
   end
 
   def to_a
