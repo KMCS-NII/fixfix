@@ -93,7 +93,7 @@ class Sample
         gaze1 = this[eye]
         gaze2 = next[eye]
         if gaze1? and gaze2? and gaze1.x? and gaze1.y? and gaze2.x? and gaze2.y?
-            klass = 'drawn ' + eye
+            klass = 'saccade drawn ' + eye
             klass += ' rs' if @rs?
             klass += ' blink' if @blink?
             this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
@@ -147,15 +147,16 @@ class Reading
         @toggle_class_on_range(from, to, klass, onoff)
 
     highlight_row_of: (index) ->
-        $('.drawn').addClass('faint')
-        @toggle_class_on_row_of(index, 'faint', false)
+        $('#gaze').addClass('faint')
+        @toggle_class_on_row_of(index, 'highlight', true)
 
     highlight_range: (from, to) ->
-        $('.drawn').addClass('faint')
-        @toggle_class_on_range(from, to, 'index', false)
+        $('#gaze').addClass('faint')
+        @toggle_class_on_range(from, to, 'highlight', true)
 
     unhighlight: ->
-        $('.faint').removeClass('faint')
+        $('#gaze').removeClass('faint')
+        $('.highlight').removeClass('highlight')
 
 
 class window.FixFix
@@ -167,6 +168,14 @@ class window.FixFix
 
     init: (@svg) =>
         @root = @svg.group()
+        @defs = @svg.defs()
+        mh = mw = 5
+        arrow = @svg.marker(@defs, 'arrow', mw, mh / 2, mw, mh, 'auto', {
+            markerUnits: 'userSpaceOnUse'
+            color: 'black'
+        })
+        @svg.polyline(arrow, [[0, 0], [[mw, mh / 2], [0, mh], [mw / 12, mh / 2]]])
+        @svg.style(@defs, "#gaze line.drawn.saccade.highlight { marker-end: url(#arrow) }")
         @bb_group = @svg.group(@root, 'bb')
         @gaze_group = @svg.group(@root, 'gaze')
         @single_mode = false

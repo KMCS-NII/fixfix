@@ -131,7 +131,7 @@
       gaze1 = this[eye];
       gaze2 = next[eye];
       if ((gaze1 != null) && (gaze2 != null) && (gaze1.x != null) && (gaze1.y != null) && (gaze2.x != null) && (gaze2.y != null)) {
-        klass = 'drawn ' + eye;
+        klass = 'saccade drawn ' + eye;
         if (this.rs != null) {
           klass += ' rs';
         }
@@ -226,17 +226,18 @@
     };
 
     Reading.prototype.highlight_row_of = function(index) {
-      $('.drawn').addClass('faint');
-      return this.toggle_class_on_row_of(index, 'faint', false);
+      $('#gaze').addClass('faint');
+      return this.toggle_class_on_row_of(index, 'highlight', true);
     };
 
     Reading.prototype.highlight_range = function(from, to) {
-      $('.drawn').addClass('faint');
-      return this.toggle_class_on_range(from, to, 'index', false);
+      $('#gaze').addClass('faint');
+      return this.toggle_class_on_range(from, to, 'highlight', true);
     };
 
     Reading.prototype.unhighlight = function() {
-      return $('.faint').removeClass('faint');
+      $('#gaze').removeClass('faint');
+      return $('.highlight').removeClass('highlight');
     };
 
     return Reading;
@@ -254,9 +255,18 @@
     }
 
     FixFix.prototype.init = function(svg) {
-      var _this = this;
+      var arrow, mh, mw,
+        _this = this;
       this.svg = svg;
       this.root = this.svg.group();
+      this.defs = this.svg.defs();
+      mh = mw = 5;
+      arrow = this.svg.marker(this.defs, 'arrow', mw, mh / 2, mw, mh, 'auto', {
+        markerUnits: 'userSpaceOnUse',
+        color: 'black'
+      });
+      this.svg.polyline(arrow, [[0, 0], [[mw, mh / 2], [0, mh], [mw / 12, mh / 2]]]);
+      this.svg.style(this.defs, "#gaze line.drawn.saccade.highlight { marker-end: url(#arrow) }");
       this.bb_group = this.svg.group(this.root, 'bb');
       this.gaze_group = this.svg.group(this.root, 'gaze');
       this.single_mode = false;

@@ -63,8 +63,12 @@ html, body
     text-anchor: middle
     alignment-baseline: middle
 #gaze
-  .faint
-    opacity: 0.1
+  &.faint
+    circle, line
+      opacity: 0.1
+    circle.highlight, line.highlight
+      opacity: inherit
+
   circle
     fill: none
   circle.drawn
