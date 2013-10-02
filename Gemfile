@@ -16,6 +16,5 @@ group :development do
 
   gem "guard-rack"
   gem "guard-sass"
-  gem "coffee-script-source", "1.5.0"
   gem 'guard-coffeescript'
 end

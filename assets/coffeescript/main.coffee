@@ -503,6 +503,20 @@ class window.FileBrowser
             fixfix.$svg.trigger('clean')
 
         circle_cmenu = [
+            {'ID': {
+                onclick: -> false
+                beforeShow: (menuitem) ->
+                    $this = $(this)
+                    index = $this.data('index')
+                    eye = $this.data('eye')
+                    sample = fixfix.data.gaze.samples[index]
+                    header = "##{index} (#{sample.time} ms) #{eye}"
+                    menuitem.$element.find('.context-menu-item-inner').text(header)
+                disabled: true
+            }},
+
+            $.contextMenu.separator,
+
             {'Freeze': {
                 onclick: (menuitem, menu, menuevent) ->
                     sample = fixfix.data.gaze.samples[parseInt($(this).data('index'), 10)]

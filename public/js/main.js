@@ -655,6 +655,22 @@
       });
       circle_cmenu = [
         {
+          'ID': {
+            onclick: function() {
+              return false;
+            },
+            beforeShow: function(menuitem) {
+              var $this, eye, header, index, sample;
+              $this = $(this);
+              index = $this.data('index');
+              eye = $this.data('eye');
+              sample = fixfix.data.gaze.samples[index];
+              header = "#" + index + " (" + sample.time + " ms) " + eye;
+              return menuitem.$element.find('.context-menu-item-inner').text(header);
+            },
+            disabled: true
+          }
+        }, $.contextMenu.separator, {
           'Freeze': {
             onclick: function(menuitem, menu, menuevent) {
               var sample;
