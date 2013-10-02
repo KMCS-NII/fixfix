@@ -59,8 +59,10 @@ html, body {
   text-anchor: middle;
   alignment-baseline: middle; }
 
-#gaze .faint {
+#gaze.faint circle, #gaze.faint line {
   opacity: 0.1; }
+#gaze.faint circle.highlight, #gaze.faint line.highlight {
+  opacity: inherit; }
 #gaze circle {
   fill: none; }
 #gaze circle.drawn {

@@ -103,6 +103,10 @@ module Routes
     end
 
     app.get '/dl/*' do
+      response.headers["Pragma"] = "no-cache"
+      response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+      response.headers["Expires"] = "0"
+
       file = File.join('data', params[:splat])
       ensure_sandboxed(file, 'data')
       edit_file = file + '.edit'
