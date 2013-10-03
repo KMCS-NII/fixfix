@@ -107,6 +107,7 @@ class Sample
         circles = $([this.left?.el, this.center?.el, this.right?.el])
         circles.toggleClass('frozen', value)
 
+
 class Reading
     constructor: (@samples, @flags, @row_bounds) ->
         for [from, to] in @row_bounds
@@ -157,6 +158,64 @@ class Reading
     unhighlight: ->
         $('#gaze').removeClass('faint')
         $('.highlight').removeClass('highlight')
+
+
+class UndoState
+    constructor: (@data, @from, @to) ->
+        @records = []
+        for index in [@from .. @to]
+            sample = @data.gaze.samples[index]
+            @records.push([
+                sample.left.x
+                sample.left.y
+                sample.center.x
+                sample.center.y
+                sample.right.x
+                sample.right.y
+            ])
+
+    restore: ->
+        for index in [@from .. @to]
+            sample = @data.gaze.samples[index]
+            [
+                sample.left.x
+                sample.left.y
+                sample.center.x
+                sample.center.y
+                sample.right.x
+                sample.right.y
+            ] = @records.pop()
+            last_sample = @data.gaze.samples[index - 1]
+            for eye in ['left', 'center', 'right']
+                if sample[eye]?.el
+                    sample[eye].el.setAttribute('cx', sample[eye].x)
+                    sample[eye].el.setAttribute('cy', sample[eye].y)
+                if sample[eye].sel
+                    sample[eye].sel.setAttribute('x1', sample[eye].x)
+                    sample[eye].sel.setAttribute('y1', sample[eye].y)
+                if last_sample and last_sample[eye]?.sel
+                    last_sample[eye].sel.setAttribute('x2', sample[eye].x)
+                    last_sample[eye].sel.setAttribute('y2', sample[eye].y)
+            if sample.iel
+                sample.iel.setAttribute('x1', sample.left.x)
+                sample.iel.setAttribute('y1', sample.left.y)
+                sample.iel.setAttribute('x2', sample.right.x)
+                sample.iel.setAttribute('y2', sample.right.y)
+
+
+
+class UndoStack
+    constructor: (@data) ->
+        @stack = []
+
+    push: (from, to) ->
+        @stack.push(new UndoState(@data, from, to))
+
+    pop: ->
+        @stack.pop().restore()
+
+    empty: ->
+        !@stack.length
 
 
 class window.FixFix
@@ -212,6 +271,7 @@ class window.FixFix
                                 break if from == row_from or (from != index and @data.gaze.samples[from].frozen)
                             for to in [index .. row_to]
                                 break if to == row_to or (to != index and @data.gaze.samples[to].frozen)
+                        @undo.push(from, to)
 
                     else if node_name == 'svg'
                     else
@@ -222,7 +282,7 @@ class window.FixFix
                         origin: event_point(svg, evt).matrixTransform(unctm)
                         index: index
                         target: index && evt.target
-                        eye: index && $target.data('eye')
+                        eye: index? && $target.data('eye')
                         row: [from, to]
                     @mousedrag = false
         )
@@ -300,6 +360,13 @@ class window.FixFix
                     )
         )
 
+        stopDrag = =>
+            if @data?.gaze?
+                @data.gaze.unhighlight()
+
+            @mousedrag = false
+            @mousedown = false
+
         $(svg).mouseup((evt) =>
             if @mousedrag
                 @$svg.removeClass('dragging')
@@ -332,12 +399,13 @@ class window.FixFix
                         type: 'post'
                         data: payload
 
-            if @data?.gaze?
-                @data.gaze.unhighlight()
-
-            @mousedrag = false
-            @mousedown = false
+            stopDrag()
         )
+
+        $(document).keyup (evt) =>
+            if evt.which == 27 # Esc
+                @undo.pop()
+                stopDrag()
 
     load: (file, type, opts) ->
         opts = opts || {}
@@ -369,6 +437,7 @@ class window.FixFix
                     for sample, index in @data.gaze.samples
                         sample.index = index
                     @render_gaze()
+                    @undo = new UndoStack(@data)
                     @$svg.trigger('loaded')
         delete opts.cache
 
@@ -559,6 +628,14 @@ class window.FileBrowser
                 title: 'Treat all points as frozen, so each operation only affects one'
                 beforeShow: (menuitem) ->
                     menuitem.$element.toggleClass('checked', fixfix.single_mode)
+            }},
+            {'Undo': {
+                onclick: (menuitem, menu, menuevent) ->
+                    fixfix.undo.pop()
+                title: 'Undo an edit action'
+                beforeShow: (menuitem) ->
+                    disabled = fixfix.undo.empty()
+                    menuitem.$element.toggleClass('context-menu-item-disabled', disabled)
             }},
         ]
         $('body').contextMenu(svg_cmenu)
