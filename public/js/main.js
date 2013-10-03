@@ -1,5 +1,5 @@
 (function() {
-  var Gaze, Reading, Sample, Word, ZOOM_SENSITIVITY, event_point, move_point, set_CTM, treedraw,
+  var Gaze, Reading, Sample, UndoStack, UndoState, Word, ZOOM_SENSITIVITY, event_point, move_point, set_CTM, treedraw,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   ZOOM_SENSITIVITY = 0.2;
@@ -244,6 +244,80 @@
 
   })();
 
+  UndoState = (function() {
+    function UndoState(data, from, to) {
+      var index, sample, _i, _ref, _ref1;
+      this.data = data;
+      this.from = from;
+      this.to = to;
+      this.records = [];
+      for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
+        sample = this.data.gaze.samples[index];
+        this.records.push([sample.left.x, sample.left.y, sample.center.x, sample.center.y, sample.right.x, sample.right.y]);
+      }
+    }
+
+    UndoState.prototype.restore = function() {
+      var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _results;
+      _results = [];
+      for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
+        sample = this.data.gaze.samples[index];
+        _ref2 = this.records.pop(), sample.left.x = _ref2[0], sample.left.y = _ref2[1], sample.center.x = _ref2[2], sample.center.y = _ref2[3], sample.right.x = _ref2[4], sample.right.y = _ref2[5];
+        last_sample = this.data.gaze.samples[index - 1];
+        _ref3 = ['left', 'center', 'right'];
+        for (_j = 0, _len = _ref3.length; _j < _len; _j++) {
+          eye = _ref3[_j];
+          if ((_ref4 = sample[eye]) != null ? _ref4.el : void 0) {
+            sample[eye].el.setAttribute('cx', sample[eye].x);
+            sample[eye].el.setAttribute('cy', sample[eye].y);
+          }
+          if (sample[eye].sel) {
+            sample[eye].sel.setAttribute('x1', sample[eye].x);
+            sample[eye].sel.setAttribute('y1', sample[eye].y);
+          }
+          if (last_sample && ((_ref5 = last_sample[eye]) != null ? _ref5.sel : void 0)) {
+            last_sample[eye].sel.setAttribute('x2', sample[eye].x);
+            last_sample[eye].sel.setAttribute('y2', sample[eye].y);
+          }
+        }
+        if (sample.iel) {
+          sample.iel.setAttribute('x1', sample.left.x);
+          sample.iel.setAttribute('y1', sample.left.y);
+          sample.iel.setAttribute('x2', sample.right.x);
+          _results.push(sample.iel.setAttribute('y2', sample.right.y));
+        } else {
+          _results.push(void 0);
+        }
+      }
+      return _results;
+    };
+
+    return UndoState;
+
+  })();
+
+  UndoStack = (function() {
+    function UndoStack(data) {
+      this.data = data;
+      this.stack = [];
+    }
+
+    UndoStack.prototype.push = function(from, to) {
+      return this.stack.push(new UndoState(this.data, from, to));
+    };
+
+    UndoStack.prototype.pop = function() {
+      return this.stack.pop().restore();
+    };
+
+    UndoStack.prototype.empty = function() {
+      return !this.stack.length;
+    };
+
+    return UndoStack;
+
+  })();
+
   window.FixFix = (function() {
     function FixFix(svg) {
       this.init = __bind(this.init, this);
@@ -255,7 +329,7 @@
     }
 
     FixFix.prototype.init = function(svg) {
-      var arrow, mh, mw,
+      var arrow, mh, mw, stopDrag,
         _this = this;
       this.svg = svg;
       this.root = this.svg.group();
@@ -305,6 +379,7 @@
                   }
                 }
               }
+              _this.undo.push(from, to);
             } else if (node_name === 'svg') {
 
             } else {
@@ -315,7 +390,7 @@
               origin: event_point(svg, evt).matrixTransform(unctm),
               index: index,
               target: index && evt.target,
-              eye: index && $target.data('eye'),
+              eye: (index != null) && $target.data('eye'),
               row: [from, to]
             };
             return _this.mousedrag = false;
@@ -393,8 +468,16 @@
           }
         }
       });
-      return $(svg).mouseup(function(evt) {
-        var changes, from, index, payload, sample, to, _i, _ref, _ref1;
+      stopDrag = function() {
+        var _ref;
+        if (((_ref = _this.data) != null ? _ref.gaze : void 0) != null) {
+          _this.data.gaze.unhighlight();
+        }
+        _this.mousedrag = false;
+        return _this.mousedown = false;
+      };
+      $(svg).mouseup(function(evt) {
+        var changes, from, index, payload, sample, to, _i, _ref;
         if (_this.mousedrag) {
           _this.$svg.removeClass('dragging');
           if (_this.mousedown.index != null) {
@@ -424,11 +507,13 @@
             });
           }
         }
-        if (((_ref1 = _this.data) != null ? _ref1.gaze : void 0) != null) {
-          _this.data.gaze.unhighlight();
+        return stopDrag();
+      });
+      return $(document).keyup(function(evt) {
+        if (evt.which === 27) {
+          _this.undo.pop();
+          return stopDrag();
         }
-        _this.mousedrag = false;
-        return _this.mousedown = false;
       });
     };
 
@@ -475,6 +560,7 @@
               sample.index = index;
             }
             _this.render_gaze();
+            _this.undo = new UndoStack(_this.data);
             return _this.$svg.trigger('loaded');
         }
       });
@@ -724,6 +810,18 @@
             title: 'Treat all points as frozen, so each operation only affects one',
             beforeShow: function(menuitem) {
               return menuitem.$element.toggleClass('checked', fixfix.single_mode);
+            }
+          }
+        }, {
+          'Undo': {
+            onclick: function(menuitem, menu, menuevent) {
+              return fixfix.undo.pop();
+            },
+            title: 'Undo an edit action',
+            beforeShow: function(menuitem) {
+              var disabled;
+              disabled = fixfix.undo.empty();
+              return menuitem.$element.toggleClass('context-menu-item-disabled', disabled);
             }
           }
         }
