@@ -240,6 +240,30 @@
       return $('.highlight').removeClass('highlight');
     };
 
+    Reading.prototype.save = function(from, to) {
+      var changes, index, payload, sample, _i;
+      changes = [];
+      for (index = _i = from; from <= to ? _i <= to : _i >= to; index = from <= to ? ++_i : --_i) {
+        sample = this.samples[index];
+        changes.push({
+          index: index,
+          lx: sample.left.x,
+          ly: sample.left.y,
+          rx: sample.right.x,
+          ry: sample.right.y
+        });
+      }
+      payload = {
+        file: this.opts.file,
+        changes: JSON.stringify(changes)
+      };
+      return $.ajax({
+        url: 'change',
+        type: 'post',
+        data: payload
+      });
+    };
+
     return Reading;
 
   })();
@@ -258,8 +282,7 @@
     }
 
     UndoState.prototype.restore = function() {
-      var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _results;
-      _results = [];
+      var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
       for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
         sample = this.data.gaze.samples[index];
         _ref2 = this.records.pop(), sample.left.x = _ref2[0], sample.left.y = _ref2[1], sample.center.x = _ref2[2], sample.center.y = _ref2[3], sample.right.x = _ref2[4], sample.right.y = _ref2[5];
@@ -284,12 +307,10 @@
           sample.iel.setAttribute('x1', sample.left.x);
           sample.iel.setAttribute('y1', sample.left.y);
           sample.iel.setAttribute('x2', sample.right.x);
-          _results.push(sample.iel.setAttribute('y2', sample.right.y));
-        } else {
-          _results.push(void 0);
+          sample.iel.setAttribute('y2', sample.right.y);
         }
       }
-      return _results;
+      return [this.from, this.to];
     };
 
     return UndoState;
@@ -477,34 +498,14 @@
         return _this.mousedown = false;
       };
       $(svg).mouseup(function(evt) {
-        var changes, from, index, payload, sample, to, _i, _ref;
+        var sample, _ref;
         if (_this.mousedrag) {
           _this.$svg.removeClass('dragging');
           if (_this.mousedown.index != null) {
             sample = _this.data.gaze.samples[_this.mousedown.index];
             sample.fix();
             _this.$svg.trigger('dirty');
-            changes = [];
-            _ref = _this.mousedown.row, from = _ref[0], to = _ref[1];
-            for (index = _i = from; from <= to ? _i <= to : _i >= to; index = from <= to ? ++_i : --_i) {
-              sample = _this.data.gaze.samples[index];
-              changes.push({
-                index: index,
-                lx: sample.left.x,
-                ly: sample.left.y,
-                rx: sample.right.x,
-                ry: sample.right.y
-              });
-            }
-            payload = {
-              file: _this.data.gaze.opts.file,
-              changes: JSON.stringify(changes)
-            };
-            $.ajax({
-              url: 'change',
-              type: 'post',
-              data: payload
-            });
+            (_ref = _this.data.gaze).save.apply(_ref, _this.mousedown.row);
           }
         }
         return stopDrag();
@@ -815,7 +816,10 @@
         }, {
           'Undo': {
             onclick: function(menuitem, menu, menuevent) {
-              return fixfix.undo.pop();
+              var from, to, _ref;
+              _ref = fixfix.undo.pop(), from = _ref[0], to = _ref[1];
+              fixfix.$svg.trigger('dirty');
+              return fixfix.data.gaze.save(from, to);
             },
             title: 'Undo an edit action',
             beforeShow: function(menuitem) {

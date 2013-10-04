@@ -159,6 +159,27 @@ class Reading
         $('#gaze').removeClass('faint')
         $('.highlight').removeClass('highlight')
 
+    save: (from, to) ->
+        changes = []
+        for index in [from .. to]
+            sample = @samples[index]
+            changes.push({
+                index: index
+                lx: sample.left.x
+                ly: sample.left.y
+                rx: sample.right.x
+                ry: sample.right.y
+            })
+
+        payload =
+            file: @opts.file
+            changes: JSON.stringify(changes)
+
+        $.ajax
+            url: 'change'
+            type: 'post'
+            data: payload
+
 
 class UndoState
     constructor: (@data, @from, @to) ->
@@ -201,6 +222,7 @@ class UndoState
                 sample.iel.setAttribute('y1', sample.left.y)
                 sample.iel.setAttribute('x2', sample.right.x)
                 sample.iel.setAttribute('y2', sample.right.y)
+        [@from, @to]
 
 
 
@@ -367,6 +389,7 @@ class window.FixFix
             @mousedrag = false
             @mousedown = false
 
+
         $(svg).mouseup((evt) =>
             if @mousedrag
                 @$svg.removeClass('dragging')
@@ -376,28 +399,7 @@ class window.FixFix
                     sample = @data.gaze.samples[@mousedown.index]
                     sample.fix()
                     @$svg.trigger('dirty')
-
-                    # save
-                    changes = []
-                    [from, to] = @mousedown.row
-                    for index in [from .. to]
-                        sample = @data.gaze.samples[index]
-                        changes.push({
-                            index: index
-                            lx: sample.left.x
-                            ly: sample.left.y
-                            rx: sample.right.x
-                            ry: sample.right.y
-                        })
-
-                    payload =
-                        file: @data.gaze.opts.file
-                        changes: JSON.stringify(changes)
-
-                    $.ajax
-                        url: 'change'
-                        type: 'post'
-                        data: payload
+                    @data.gaze.save(@mousedown.row...)
 
             stopDrag()
         )
@@ -631,7 +633,10 @@ class window.FileBrowser
             }},
             {'Undo': {
                 onclick: (menuitem, menu, menuevent) ->
-                    fixfix.undo.pop()
+                    [from, to] = fixfix.undo.pop()
+                    fixfix.$svg.trigger('dirty')
+                    fixfix.data.gaze.save(from, to)
+
                 title: 'Undo an edit action'
                 beforeShow: (menuitem) ->
                     disabled = fixfix.undo.empty()
