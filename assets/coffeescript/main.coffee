@@ -160,6 +160,7 @@ class Reading
         $('.highlight').removeClass('highlight')
 
     save: (from, to) ->
+        return if to < from
         changes = []
         for index in [from .. to]
             sample = @samples[index]
@@ -227,9 +228,8 @@ class MoveAction extends EditAction
         [@from, @to]
 
 
-
 class UndoStack
-    constructor: (@data) ->
+    constructor: () ->
         @stack = []
 
     push: (action) ->
@@ -247,6 +247,7 @@ class window.FixFix
         @$svg = $(svg)
         @data = {}
         $(@$svg).svg(onLoad: @init)
+        @undo = new UndoStack()
 
 
     init: (@svg) =>
@@ -385,7 +386,7 @@ class window.FixFix
                     )
         )
 
-        stopDrag = =>
+        stop_drag = =>
             if @data?.gaze?
                 @data.gaze.unhighlight()
 
@@ -404,13 +405,13 @@ class window.FixFix
                     @$svg.trigger('dirty')
                     @data.gaze.save(@mousedown.row...)
 
-            stopDrag()
+            stop_drag()
         )
 
         $(document).keyup (evt) =>
-            if evt.which == 27 # Esc
+            if @mousedrag and evt.which == 27 # Esc
                 @undo.pop()
-                stopDrag()
+                stop_drag()
 
     load: (file, type, opts) ->
         opts = opts || {}
@@ -442,7 +443,7 @@ class window.FixFix
                     for sample, index in @data.gaze.samples
                         sample.index = index
                     @render_gaze()
-                    @undo = new UndoStack(@data)
+                    @undo = new UndoStack()
                     @$svg.trigger('loaded')
         delete opts.cache
 
@@ -585,67 +586,64 @@ class window.FileBrowser
             load()
             fixfix.$svg.trigger('clean')
 
-        circle_cmenu = [
-            {'ID': {
-                onclick: -> false
-                beforeShow: (menuitem) ->
-                    $this = $(this)
-                    index = $this.data('index')
-                    eye = $this.data('eye')
-                    sample = fixfix.data.gaze.samples[index]
-                    header = "##{index} (#{sample.time} ms) #{eye}"
-                    menuitem.$element.find('.context-menu-item-inner').text(header)
-                disabled: true
-            }},
 
-            $.contextMenu.separator,
+        $(fixfix.svg._svg).contextMenu({
+            selector: 'circle',
+            animation:
+                duration: 0
+            build: ($trigger, evt) ->
+                index = $trigger.data('index')
+                eye = $trigger.data('eye')
+                sample = fixfix.data.gaze.samples[index]
+                [from, to] = fixfix.data.gaze.find_row(index)
 
-            {'Freeze': {
-                onclick: (menuitem, menu, menuevent) ->
-                    sample = fixfix.data.gaze.samples[parseInt($(this).data('index'), 10)]
-                    sample.fix(!sample.frozen)
-                    true
-                title: 'Prevent from being moved automatically'
-                beforeShow: (menuitem) ->
-                    index = parseInt($(this).data('index'), 10)
-                    sample = fixfix.data.gaze.samples[index]
-                    [from, to] = fixfix.data.gaze.find_row(index)
-                    disabled = index <= from or index >= to
-                    menuitem.$element.toggleClass('context-menu-item-disabled', disabled)
-                    menuitem.$element.toggleClass('checked', !!sample.frozen)
-            }},
-            {'Unfreeze Row': {
-                onclick: (menuitem, menu, menuevent) ->
-                    [from, to] = fixfix.data.gaze.find_row(parseInt($(this).data('index'), 10))
-                    for index in [from + 1 ... to]
-                        fixfix.data.gaze.samples[index].fix(false)
-                    true
-                title: 'Unfreeze all points in this row'
-            }},
-        ]
-        $(fixfix.svg._svg).contextMenu(circle_cmenu, 'circle')
+                items =
+                    header:
+                        name: "##{index} #{eye} (#{sample.time} ms)"
+                        className: "header"
+                        disabled: true
+                    frozen:
+                        name: "Frozen"
+                        disabled: index <= from or index >= to
+                        icon: if sample.frozen then "checkmark" else undefined
+                        callback: (key, options) ->
+                            sample.fix(!sample.frozen)
+                    unfreeze_row:
+                        name: "Unfreeze Row"
+                        callback: (key, options) ->
+                            for index in [from + 1 ... to]
+                                fixfix.data.gaze.samples[index].fix(false)
 
-        svg_cmenu = [
-            {'Single Mode': {
-                onclick: (menuitem, menu, menuevent) ->
-                    fixfix.single_mode = !fixfix.single_mode
-                    true
-                title: 'Treat all points as frozen, so each operation only affects one'
-                beforeShow: (menuitem) ->
-                    menuitem.$element.toggleClass('checked', fixfix.single_mode)
-            }},
-            {'Undo': {
-                onclick: (menuitem, menu, menuevent) ->
-                    [from, to] = fixfix.undo.pop()
-                    fixfix.$svg.trigger('dirty')
-                    fixfix.data.gaze.save(from, to)
+                return {
+                    items: items
+                }
+        })
 
-                title: 'Undo an edit action'
-                beforeShow: (menuitem) ->
-                    disabled = fixfix.undo.empty()
-                    menuitem.$element.toggleClass('context-menu-item-disabled', disabled)
-            }},
-        ]
-        $('body').contextMenu(svg_cmenu)
+
+        $.contextMenu({
+            selector: 'body'
+            animation:
+                duration: 0
+            build: ($trigger, evt) ->
+                items =
+                    single:
+                        name: "Single mode"
+                        icon: if fixfix.single_mode then "checkmark" else undefined
+                        callback: (key, options) ->
+                            fixfix.single_mode = !fixfix.single_mode
+                            true
+                    undo:
+                        name: "Undo"
+                        disabled: fixfix.undo.empty()
+                        callback: (key, options) ->
+                            [from, to] = fixfix.undo.pop()
+                            fixfix.$svg.trigger('dirty')
+                            fixfix.data.gaze.save(from, to)
+
+                return {
+                    items: items
+                }
+        })
+
 
         set_opts()

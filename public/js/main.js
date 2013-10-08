@@ -244,6 +244,9 @@
 
     Reading.prototype.save = function(from, to) {
       var changes, index, payload, sample, _i;
+      if (to < from) {
+        return;
+      }
       changes = [];
       for (index = _i = from; from <= to ? _i <= to : _i >= to; index = from <= to ? ++_i : --_i) {
         sample = this.samples[index];
@@ -329,8 +332,7 @@
   })(EditAction);
 
   UndoStack = (function() {
-    function UndoStack(data) {
-      this.data = data;
+    function UndoStack() {
       this.stack = [];
     }
 
@@ -358,10 +360,11 @@
       $(this.$svg).svg({
         onLoad: this.init
       });
+      this.undo = new UndoStack();
     }
 
     FixFix.prototype.init = function(svg) {
-      var arrow, mh, mw, stopDrag,
+      var arrow, mh, mw, stop_drag,
         _this = this;
       this.svg = svg;
       this.root = this.svg.group();
@@ -501,7 +504,7 @@
           }
         }
       });
-      stopDrag = function() {
+      stop_drag = function() {
         var _ref;
         if (((_ref = _this.data) != null ? _ref.gaze : void 0) != null) {
           _this.data.gaze.unhighlight();
@@ -520,12 +523,12 @@
             (_ref = _this.data.gaze).save.apply(_ref, _this.mousedown.row);
           }
         }
-        return stopDrag();
+        return stop_drag();
       });
       return $(document).keyup(function(evt) {
-        if (evt.which === 27) {
+        if (_this.mousedrag && evt.which === 27) {
           _this.undo.pop();
-          return stopDrag();
+          return stop_drag();
         }
       });
     };
@@ -573,7 +576,7 @@
               sample.index = index;
             }
             _this.render_gaze();
-            _this.undo = new UndoStack(_this.data);
+            _this.undo = new UndoStack();
             return _this.$svg.trigger('loaded');
         }
       });
@@ -650,7 +653,7 @@
 
   window.FileBrowser = (function() {
     function FileBrowser(fixfix, bb_browser, gaze_browser) {
-      var $bb_selected, $gaze_selected, circle_cmenu, fixations, load, load_timer, load_with_delay, opts, set_opts, svg_cmenu,
+      var $bb_selected, $gaze_selected, fixations, load, load_timer, load_with_delay, opts, set_opts,
         _this = this;
       opts = {};
       fixations = null;
@@ -762,87 +765,80 @@
         load();
         return fixfix.$svg.trigger('clean');
       });
-      circle_cmenu = [
-        {
-          'ID': {
-            onclick: function() {
-              return false;
+      $(fixfix.svg._svg).contextMenu({
+        selector: 'circle',
+        animation: {
+          duration: 0
+        },
+        build: function($trigger, evt) {
+          var eye, from, index, items, sample, to, _ref;
+          index = $trigger.data('index');
+          eye = $trigger.data('eye');
+          sample = fixfix.data.gaze.samples[index];
+          _ref = fixfix.data.gaze.find_row(index), from = _ref[0], to = _ref[1];
+          items = {
+            header: {
+              name: "#" + index + " " + eye + " (" + sample.time + " ms)",
+              className: "header",
+              disabled: true
             },
-            beforeShow: function(menuitem) {
-              var $this, eye, header, index, sample;
-              $this = $(this);
-              index = $this.data('index');
-              eye = $this.data('eye');
-              sample = fixfix.data.gaze.samples[index];
-              header = "#" + index + " (" + sample.time + " ms) " + eye;
-              return menuitem.$element.find('.context-menu-item-inner').text(header);
-            },
-            disabled: true
-          }
-        }, $.contextMenu.separator, {
-          'Freeze': {
-            onclick: function(menuitem, menu, menuevent) {
-              var sample;
-              sample = fixfix.data.gaze.samples[parseInt($(this).data('index'), 10)];
-              sample.fix(!sample.frozen);
-              return true;
-            },
-            title: 'Prevent from being moved automatically',
-            beforeShow: function(menuitem) {
-              var disabled, from, index, sample, to, _ref;
-              index = parseInt($(this).data('index'), 10);
-              sample = fixfix.data.gaze.samples[index];
-              _ref = fixfix.data.gaze.find_row(index), from = _ref[0], to = _ref[1];
-              disabled = index <= from || index >= to;
-              menuitem.$element.toggleClass('context-menu-item-disabled', disabled);
-              return menuitem.$element.toggleClass('checked', !!sample.frozen);
-            }
-          }
-        }, {
-          'Unfreeze Row': {
-            onclick: function(menuitem, menu, menuevent) {
-              var from, index, to, _i, _ref, _ref1;
-              _ref = fixfix.data.gaze.find_row(parseInt($(this).data('index'), 10)), from = _ref[0], to = _ref[1];
-              for (index = _i = _ref1 = from + 1; _ref1 <= to ? _i < to : _i > to; index = _ref1 <= to ? ++_i : --_i) {
-                fixfix.data.gaze.samples[index].fix(false);
+            frozen: {
+              name: "Frozen",
+              disabled: index <= from || index >= to,
+              icon: sample.frozen ? "checkmark" : void 0,
+              callback: function(key, options) {
+                return sample.fix(!sample.frozen);
               }
-              return true;
             },
-            title: 'Unfreeze all points in this row'
-          }
-        }
-      ];
-      $(fixfix.svg._svg).contextMenu(circle_cmenu, 'circle');
-      svg_cmenu = [
-        {
-          'Single Mode': {
-            onclick: function(menuitem, menu, menuevent) {
-              fixfix.single_mode = !fixfix.single_mode;
-              return true;
-            },
-            title: 'Treat all points as frozen, so each operation only affects one',
-            beforeShow: function(menuitem) {
-              return menuitem.$element.toggleClass('checked', fixfix.single_mode);
+            unfreeze_row: {
+              name: "Unfreeze Row",
+              callback: function(key, options) {
+                var _i, _ref1, _results;
+                _results = [];
+                for (index = _i = _ref1 = from + 1; _ref1 <= to ? _i < to : _i > to; index = _ref1 <= to ? ++_i : --_i) {
+                  _results.push(fixfix.data.gaze.samples[index].fix(false));
+                }
+                return _results;
+              }
             }
-          }
-        }, {
-          'Undo': {
-            onclick: function(menuitem, menu, menuevent) {
-              var from, to, _ref;
-              _ref = fixfix.undo.pop(), from = _ref[0], to = _ref[1];
-              fixfix.$svg.trigger('dirty');
-              return fixfix.data.gaze.save(from, to);
-            },
-            title: 'Undo an edit action',
-            beforeShow: function(menuitem) {
-              var disabled;
-              disabled = fixfix.undo.empty();
-              return menuitem.$element.toggleClass('context-menu-item-disabled', disabled);
-            }
-          }
+          };
+          return {
+            items: items
+          };
         }
-      ];
-      $('body').contextMenu(svg_cmenu);
+      });
+      $.contextMenu({
+        selector: 'body',
+        animation: {
+          duration: 0
+        },
+        build: function($trigger, evt) {
+          var items;
+          items = {
+            single: {
+              name: "Single mode",
+              icon: fixfix.single_mode ? "checkmark" : void 0,
+              callback: function(key, options) {
+                fixfix.single_mode = !fixfix.single_mode;
+                return true;
+              }
+            },
+            undo: {
+              name: "Undo",
+              disabled: fixfix.undo.empty(),
+              callback: function(key, options) {
+                var from, to, _ref;
+                _ref = fixfix.undo.pop(), from = _ref[0], to = _ref[1];
+                fixfix.$svg.trigger('dirty');
+                return fixfix.data.gaze.save(from, to);
+              }
+            }
+          };
+          return {
+            items: items
+          };
+        }
+      });
       set_opts();
     }
 
