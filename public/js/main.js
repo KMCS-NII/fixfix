@@ -1,5 +1,7 @@
 (function() {
-  var Gaze, Reading, Sample, UndoStack, UndoState, Word, ZOOM_SENSITIVITY, event_point, move_point, set_CTM, treedraw,
+  var EditAction, Gaze, MoveAction, Reading, Sample, UndoStack, Word, ZOOM_SENSITIVITY, event_point, move_point, set_CTM, treedraw,
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   ZOOM_SENSITIVITY = 0.2;
@@ -268,8 +270,17 @@
 
   })();
 
-  UndoState = (function() {
-    function UndoState(data, from, to) {
+  EditAction = (function() {
+    function EditAction() {}
+
+    return EditAction;
+
+  })();
+
+  MoveAction = (function(_super) {
+    __extends(MoveAction, _super);
+
+    function MoveAction(data, from, to) {
       var index, sample, _i, _ref, _ref1;
       this.data = data;
       this.from = from;
@@ -281,7 +292,7 @@
       }
     }
 
-    UndoState.prototype.restore = function() {
+    MoveAction.prototype.restore = function() {
       var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
       for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
         sample = this.data.gaze.samples[index];
@@ -313,9 +324,9 @@
       return [this.from, this.to];
     };
 
-    return UndoState;
+    return MoveAction;
 
-  })();
+  })(EditAction);
 
   UndoStack = (function() {
     function UndoStack(data) {
@@ -323,8 +334,8 @@
       this.stack = [];
     }
 
-    UndoStack.prototype.push = function(from, to) {
-      return this.stack.push(new UndoState(this.data, from, to));
+    UndoStack.prototype.push = function(action) {
+      return this.stack.push(action);
     };
 
     UndoStack.prototype.pop = function() {
@@ -376,7 +387,7 @@
         return false;
       });
       $(svg).on('mousedown', function(evt) {
-        var $target, from, index, node_name, row_from, row_to, to, unctm, _i, _j, _ref, _ref1;
+        var $target, action, from, index, node_name, row_from, row_to, to, unctm, _i, _j, _ref, _ref1;
         node_name = evt.target.nodeName;
         unctm = _this.root.getCTM().inverse();
         switch (evt.button) {
@@ -400,7 +411,8 @@
                   }
                 }
               }
-              _this.undo.push(from, to);
+              action = new MoveAction(_this.data, from, to);
+              _this.undo.push(action);
             } else if (node_name === 'svg') {
 
             } else {

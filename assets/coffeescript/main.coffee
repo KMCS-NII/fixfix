@@ -181,7 +181,9 @@ class Reading
             data: payload
 
 
-class UndoState
+class EditAction
+
+class MoveAction extends EditAction
     constructor: (@data, @from, @to) ->
         @records = []
         for index in [@from .. @to]
@@ -230,8 +232,8 @@ class UndoStack
     constructor: (@data) ->
         @stack = []
 
-    push: (from, to) ->
-        @stack.push(new UndoState(@data, from, to))
+    push: (action) ->
+        @stack.push(action)
 
     pop: ->
         @stack.pop().restore()
@@ -293,7 +295,8 @@ class window.FixFix
                                 break if from == row_from or (from != index and @data.gaze.samples[from].frozen)
                             for to in [index .. row_to]
                                 break if to == row_to or (to != index and @data.gaze.samples[to].frozen)
-                        @undo.push(from, to)
+                        action = new MoveAction(@data, from, to)
+                        @undo.push(action)
 
                     else if node_name == 'svg'
                     else
