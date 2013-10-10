@@ -113,6 +113,9 @@ class Reading
         for [from, to] in @row_bounds
             @samples[from].frozen = true
             @samples[to].frozen = true
+            @selection =
+                start: null
+                end: null
 
     find_row: (index) ->
         for [from, to] in @row_bounds
@@ -155,13 +158,50 @@ class Reading
         $('#gaze').addClass('faint')
         @toggle_class_on_range(from, to, 'highlight', true)
 
+    get_selection: (force) ->
+        if @selection.start or @selection.end or force
+            return {
+                start: @selection.start || 0
+                end: to = @selection.end || (@samples.length - 1)
+            }
+        else
+            return null
+
     unhighlight: ->
-        $('#gaze').removeClass('faint')
         $('.highlight').removeClass('highlight')
+        if (selection = @get_selection())
+            $('#gaze').addClass('faint')
+            @highlight_range(selection.start, selection.end)
+        else
+            $('#gaze').removeClass('faint')
+
+    save: (from, to) ->
+        return if to < from
+        changes = []
+        for index in [from .. to]
+            sample = @samples[index]
+            changes.push({
+                index: index
+                lx: sample.left.x
+                ly: sample.left.y
+                rx: sample.right.x
+                ry: sample.right.y
+            })
+
+        payload =
+            file: @opts.file
+            changes: JSON.stringify(changes)
+
+        $.ajax
+            url: 'change'
+            type: 'post'
+            data: payload
 
 
-class UndoState
-    constructor: (@data, @from, @to) ->
+class EditAction
+
+class MoveAction extends EditAction
+    constructor: (@data, @from, @to, @index) ->
         @records = []
         for index in [@from .. @to]
             sample = @data.gaze.samples[index]
@@ -184,7 +224,7 @@ class UndoState
                 sample.center.y
                 sample.right.x
                 sample.right.y
-            ] = @records.pop()
+            ] = @records.shift()
             last_sample = @data.gaze.samples[index - 1]
             for eye in ['left', 'center', 'right']
                 if sample[eye]?.el
@@ -201,18 +241,23 @@ class UndoState
                 sample.iel.setAttribute('y1', sample.left.y)
                 sample.iel.setAttribute('x2', sample.right.x)
                 sample.iel.setAttribute('y2', sample.right.y)
+        [@from, @to]
 
+class ScaleAction extends MoveAction
 
 
 class UndoStack
-    constructor: (@data) ->
+    constructor: () ->
         @stack = []
 
-    push: (from, to) ->
-        @stack.push(new UndoState(@data, from, to))
+    push: (action) ->
+        @stack.push(action)
 
     pop: ->
         @stack.pop().restore()
+
+    peek: ->
+        @stack[@stack.length - 1]
 
     empty: ->
         !@stack.length
@@ -223,6 +268,8 @@ class window.FixFix
         @$svg = $(svg)
         @data = {}
         $(@$svg).svg(onLoad: @init)
+        @undo = new UndoStack()
+        @mode = null
 
 
     init: (@svg) =>
@@ -271,7 +318,8 @@ class window.FixFix
                                 break if from == row_from or (from != index and @data.gaze.samples[from].frozen)
                             for to in [index .. row_to]
                                 break if to == row_to or (to != index and @data.gaze.samples[to].frozen)
-                        @undo.push(from, to)
+                        action = new MoveAction(@data, from, to, index)
+                        @undo.push(action)
 
                     else if node_name == 'svg'
                     else
@@ -349,6 +397,7 @@ class window.FixFix
                             move_point(prev_sample?.right?.sel, 'x2', 'y2', sample.right)
 
                         prev_sample = sample
+                    sample = @data.gaze.samples[@mousedown.index]
                 else
                     # pan the view
                     set_CTM(@root,
@@ -360,12 +409,13 @@ class window.FixFix
                     )
         )
 
-        stopDrag = =>
+        stop_drag = =>
             if @data?.gaze?
                 @data.gaze.unhighlight()
 
             @mousedrag = false
             @mousedown = false
+
 
         $(svg).mouseup((evt) =>
             if @mousedrag
@@ -376,36 +426,76 @@ class window.FixFix
                     sample = @data.gaze.samples[@mousedown.index]
                     sample.fix()
                     @$svg.trigger('dirty')
+                    @data.gaze.save(@mousedown.row...)
 
-                    # save
-                    changes = []
-                    [from, to] = @mousedown.row
-                    for index in [from .. to]
-                        sample = @data.gaze.samples[index]
-                        changes.push({
-                            index: index
-                            lx: sample.left.x
-                            ly: sample.left.y
-                            rx: sample.right.x
-                            ry: sample.right.y
-                        })
-
-                    payload =
-                        file: @data.gaze.opts.file
-                        changes: JSON.stringify(changes)
-
-                    $.ajax
-                        url: 'change'
-                        type: 'post'
-                        data: payload
-
-            stopDrag()
+            stop_drag()
         )
 
         $(document).keyup (evt) =>
-            if evt.which == 27 # Esc
+            if @mousedrag and evt.which == 27 # Esc
                 @undo.pop()
-                stopDrag()
+                stop_drag()
+
+    scale_selection: (moved_index, scale_index, affect_x, affect_y) ->
+        selection = @data.gaze.get_selection(true)
+        last_undo = @undo.peek()
+
+        moved_sample = @data.gaze.samples[last_undo.index]
+        move_info = last_undo.records[last_undo.index - last_undo.from]
+
+        delta_left_x = move_info[0] - moved_sample.left.x
+        delta_left_y = move_info[1] - moved_sample.left.y
+        delta_center_x = move_info[2] - moved_sample.center.x
+        delta_center_y = move_info[3] - moved_sample.center.y
+        delta_right_x = move_info[4] - moved_sample.right.x
+        delta_right_y = move_info[5] - moved_sample.right.y
+
+        @undo.pop()
+        @undo.push(new ScaleAction(@data, selection.start, selection.end, moved_index))
+        scale_sample = if scale_index? then @data.gaze.samples[scale_index] else null
+
+        scale_delta = (orig_value, moved_orig_value, scale_point_orig_value, delta_at_moved_point) ->
+            scale_factor =
+                if scale_point_orig_value
+                    (orig_value - scale_point_orig_value) / (moved_orig_value - scale_point_orig_value)
+                else
+                    1
+            delta_at_moved_point * scale_factor
+
+        for index in [selection.start .. selection.end]
+            sample = @data.gaze.samples[index]
+            if affect_x
+                sample.left.x -= scale_delta(sample.left.x, moved_sample.left.x, scale_sample and scale_sample.left.x, delta_left_x)
+                sample.center.x -= scale_delta(sample.center.x, moved_sample.center.x, scale_sample and scale_sample.center.x, delta_center_x)
+                sample.right.x -= scale_delta(sample.right.x, moved_sample.right.x, scale_sample and scale_sample.right.x, delta_right_x)
+            if affect_y
+                sample.left.y -= scale_delta(sample.left.y, moved_sample.left.y, scale_sample and scale_sample.left.y, delta_left_y)
+                sample.center.y -= scale_delta(sample.center.y, moved_sample.center.y, scale_sample and scale_sample.center.y, delta_center_y)
+                sample.right.y -= scale_delta(sample.right.y, moved_sample.right.y, scale_sample and scale_sample.right.y, delta_right_y)
+
+        last_sample = @data.gaze.samples[selection.start - 1]
+        for index in [selection.start .. selection.end]
+            sample = @data.gaze.samples[index]
+            for eye in ['left', 'center', 'right']
+                if sample[eye]?.el
+                    sample[eye].el.setAttribute('cx', sample[eye].x)
+                    sample[eye].el.setAttribute('cy', sample[eye].y)
+                if sample[eye].sel
+                    sample[eye].sel.setAttribute('x1', sample[eye].x)
+                    sample[eye].sel.setAttribute('y1', sample[eye].y)
+                if last_sample and last_sample[eye]?.sel
+                    last_sample[eye].sel.setAttribute('x2', sample[eye].x)
+                    last_sample[eye].sel.setAttribute('y2', sample[eye].y)
+            if sample.iel
+                sample.iel.setAttribute('x1', sample.left.x)
+                sample.iel.setAttribute('y1', sample.left.y)
+                sample.iel.setAttribute('x2', sample.right.x)
+                sample.iel.setAttribute('y2', sample.right.y)
+            last_sample = sample
+
+        @$svg.trigger('dirty')
+        @data.gaze.save(selection.start, selection.end)
+        @scale_point = moved_index
 
     load: (file, type, opts) ->
         opts = opts || {}
@@ -437,7 +527,7 @@ class window.FixFix
                     for sample, index in @data.gaze.samples
                         sample.index = index
                     @render_gaze()
-                    @undo = new UndoStack(@data)
+                    @undo = new UndoStack()
                     @$svg.trigger('loaded')
         delete opts.cache
 
@@ -580,64 +670,101 @@ class window.FileBrowser
             load()
             fixfix.$svg.trigger('clean')
 
-        circle_cmenu = [
-            {'ID': {
-                onclick: -> false
-                beforeShow: (menuitem) ->
-                    $this = $(this)
-                    index = $this.data('index')
-                    eye = $this.data('eye')
-                    sample = fixfix.data.gaze.samples[index]
-                    header = "##{index} (#{sample.time} ms) #{eye}"
-                    menuitem.$element.find('.context-menu-item-inner').text(header)
-                disabled: true
-            }},
 
-            $.contextMenu.separator,
+        $(fixfix.svg._svg).contextMenu({
+            selector: 'circle',
+            animation:
+                duration: 0
+            build: ($trigger, evt) ->
+                index = $trigger.data('index')
+                eye = $trigger.data('eye')
+                sample = fixfix.data.gaze.samples[index]
+                [from, to] = fixfix.data.gaze.find_row(index)
 
-            {'Freeze': {
-                onclick: (menuitem, menu, menuevent) ->
-                    sample = fixfix.data.gaze.samples[parseInt($(this).data('index'), 10)]
-                    sample.fix(!sample.frozen)
-                    true
-                title: 'Prevent from being moved automatically'
-                beforeShow: (menuitem) ->
-                    index = parseInt($(this).data('index'), 10)
-                    sample = fixfix.data.gaze.samples[index]
-                    [from, to] = fixfix.data.gaze.find_row(index)
-                    disabled = index <= from or index >= to
-                    menuitem.$element.toggleClass('context-menu-item-disabled', disabled)
-                    menuitem.$element.toggleClass('checked', !!sample.frozen)
-            }},
-            {'Unfreeze Row': {
-                onclick: (menuitem, menu, menuevent) ->
-                    [from, to] = fixfix.data.gaze.find_row(parseInt($(this).data('index'), 10))
-                    for index in [from + 1 ... to]
-                        fixfix.data.gaze.samples[index].fix(false)
-                    true
-                title: 'Unfreeze all points in this row'
-            }},
-        ]
-        $(fixfix.svg._svg).contextMenu(circle_cmenu, 'circle')
+                items =
+                    header:
+                        name: "##{index} #{eye} (#{sample.time} ms)"
+                        className: "header"
+                        disabled: true
+                    frozen:
+                        name: "Frozen"
+                        disabled: index <= from or index >= to
+                        icon: if sample.frozen then "checkmark" else undefined
+                        callback: (key, options) ->
+                            sample.fix(!sample.frozen)
+                    unfreeze_row:
+                        name: "Unfreeze Row"
+                        callback: (key, options) ->
+                            for index in [from + 1 ... to]
+                                fixfix.data.gaze.samples[index].fix(false)
+                    separator1: "----------"
+                    select_start:
+                        name: "Selection Start"
+                        callback: (key, options) ->
+                            fixfix.data.gaze.selection.start = index
+                            fixfix.data.gaze.unhighlight()
+                    select_end:
+                        name: "Selection End"
+                        callback: (key, options) ->
+                            fixfix.data.gaze.selection.end = index
+                            fixfix.data.gaze.unhighlight()
+                    scale_point:
+                        name: "Scale Point"
+                        callback: (key, options) ->
+                            fixfix.scale_point = index
 
-        svg_cmenu = [
-            {'Single Mode': {
-                onclick: (menuitem, menu, menuevent) ->
-                    fixfix.single_mode = !fixfix.single_mode
-                    true
-                title: 'Treat all points as frozen, so each operation only affects one'
-                beforeShow: (menuitem) ->
-                    menuitem.$element.toggleClass('checked', fixfix.single_mode)
-            }},
-            {'Undo': {
-                onclick: (menuitem, menu, menuevent) ->
-                    fixfix.undo.pop()
-                title: 'Undo an edit action'
-                beforeShow: (menuitem) ->
-                    disabled = fixfix.undo.empty()
-                    menuitem.$element.toggleClass('context-menu-item-disabled', disabled)
-            }},
-        ]
-        $('body').contextMenu(svg_cmenu)
+                return {
+                    items: items
+                }
+        })
+
+
+        $.contextMenu({
+            selector: 'body'
+            animation:
+                duration: 0
+            build: ($trigger, evt) ->
+                last_undo = fixfix.undo.peek()
+                move_present = last_undo and (last_undo.constructor is MoveAction)
+                items =
+                    single:
+                        name: "Single mode"
+                        icon: if fixfix.single_mode then "checkmark" else undefined
+                        callback: (key, options) ->
+                            fixfix.single_mode = !fixfix.single_mode
+                            true
+                    undo:
+                        name: "Undo"
+                        disabled: fixfix.undo.empty()
+                        callback: (key, options) ->
+                            [from, to] = fixfix.undo.pop()
+                            fixfix.$svg.trigger('dirty')
+                            fixfix.data.gaze.save(from, to)
+                    mode_sep: "----------"
+                    move:
+                        name: "Move"
+                        disabled: !move_present
+                        callback: (key, options) ->
+                            fixfix.scale_selection(last_undo.index, null, true, true)
+                    scale:
+                        name: "Scale"
+                        disabled: !(fixfix.scale_point? and move_present and fixfix.scale_point != last_undo.index)
+                        callback: (key, options) ->
+                            fixfix.scale_selection(last_undo.index, fixfix.scale_point, true, true)
+                    select_clear:
+                        name: "Selection Clear"
+                        disabled: !fixfix.data.gaze.get_selection()
+                        callback: (key, options) ->
+                            fixfix.data.gaze.selection =
+                                start: null
+                                end: null
+                            fixfix.data.gaze.unhighlight()
+                            
+
+                return {
+                    items: items
+                }
+        })
+
 
         set_opts()

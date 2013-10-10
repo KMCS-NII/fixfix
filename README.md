@@ -8,7 +8,7 @@ Libraries:
 * [jQuery File Tree](http://www.abeautifulsite.net/blog/2008/03/jquery-file-tree/) - modified
 * [jQuery Ajax Reviver](https://github.com/quickredfox/jquery-ajax-reviver)
 * [jQuery Mousewheel](https://github.com/brandonaaron/jquery-mousewheel)
-* [jQuery Context Menu plugin](http://www.javascripttoolbox.com/lib/contextmenu/) - modified
+* [jQuery contextMenu](http://medialize.github.io/jQuery-contextMenu/)
 
 Ideas:
 
