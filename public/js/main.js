@@ -1,10 +1,8 @@
 (function() {
-  var EditAction, Gaze, MoveAction, Reading, Sample, ScaleAction, UndoStack, Word, ZOOM_SENSITIVITY, event_point, move_point, set_CTM, treedraw, _ref,
+  var EditAction, Gaze, MoveAction, Reading, Sample, ScaleAction, UndoStack, Word, event_point, move_point, set_CTM, treedraw, _ref,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
-
-  ZOOM_SENSITIVITY = 0.2;
 
   $.contextMenu.shadow = false;
 
@@ -423,7 +421,7 @@
       $(svg).mousewheel(function(evt, delta, dx, dy) {
         var ctm, k, p, z;
         ctm = _this.root.getCTM();
-        z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360);
+        z = Math.pow(5, dy / 180);
         p = event_point(svg, evt).matrixTransform(ctm.inverse());
         k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
         set_CTM(_this.root, ctm.multiply(k));
