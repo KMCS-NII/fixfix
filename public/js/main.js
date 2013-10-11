@@ -938,7 +938,7 @@
           duration: 0
         },
         build: function($trigger, evt) {
-          var items, last_undo, move_present;
+          var items, last_undo, move_present, _ref1, _ref2;
           last_undo = fixfix.undo.peek();
           move_present = last_undo && (last_undo.constructor === MoveAction);
           items = {
@@ -977,7 +977,7 @@
             },
             select_clear: {
               name: "Selection Clear",
-              disabled: !fixfix.data.gaze.get_selection(),
+              disabled: !(fixfix != null ? (_ref1 = fixfix.data) != null ? (_ref2 = _ref1.gaze) != null ? _ref2.get_selection() : void 0 : void 0 : void 0),
               callback: function(key, options) {
                 fixfix.data.gaze.selection = {
                   start: null,

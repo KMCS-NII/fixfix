@@ -753,7 +753,7 @@ class window.FileBrowser
                             fixfix.scale_selection(last_undo.index, fixfix.scale_point, true, true)
                     select_clear:
                         name: "Selection Clear"
-                        disabled: !fixfix.data.gaze.get_selection()
+                        disabled: !fixfix?.data?.gaze?.get_selection()
                         callback: (key, options) ->
                             fixfix.data.gaze.selection =
                                 start: null
