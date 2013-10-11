@@ -27,6 +27,10 @@
     var toBind = 'onwheel' in document || document.documentMode >= 9 ? ['wheel'] : ['mousewheel', 'DomMouseScroll', 'MozMousePixelScroll'];
     var lowestDelta, lowestDeltaXY;
 
+    var isMacWebkit = (navigator.userAgent.indexOf("Macintosh") !== -1 &&
+                       navigator.userAgent.indexOf("WebKit") !== -1);
+    var isFirefox = (navigator.userAgent.indexOf("Gecko") !== -1);
+
     if ( $.event.fixHooks ) {
         for ( var i = toFix.length; i; ) {
             $.event.fixHooks[ toFix[--i] ] = $.event.mouseHooks;
@@ -67,46 +71,32 @@
 
 
     function handler(event) {
-        var orgEvent = event || window.event,
-            args = [].slice.call(arguments, 1),
-            delta = 0,
-            deltaX = 0,
-            deltaY = 0,
-            absDelta = 0,
-            absDeltaXY = 0,
-            fn;
+        var orgEvent = event || window.event;
+        var args = [].slice.call(arguments, 1),
         event = $.event.fix(orgEvent);
         event.type = "mousewheel";
 
-        // Old school scrollwheel delta
-        if ( orgEvent.wheelDelta ) { delta = orgEvent.wheelDelta; }
-        if ( orgEvent.detail )     { delta = orgEvent.detail * -1; }
+        var deltaX =
+            orgEvent.deltaX * -30 ||     // wheel event
+            orgEvent.wheelDeltaX / 4 ||  // mousewheel
+            0;                           // property not defined
+        var deltaY =
+            orgEvent.deltaY * -30 ||     // wheel event
+            orgEvent.wheelDeltaY / 4 ||  // mousewheel event in Webkit
+            (orgEvent.wheelDeltaY === undefined &&      // if there is no 2D property then 
+                orgEvent.wheelDelta / 4) ||             // use the 1D wheel property
+            orgEvent.detail * -10 ||     // Firefox DOMMouseScroll event
+            0;                           // property not defined
 
-        // New school wheel delta (wheel event)
-        if ( orgEvent.deltaY ) {
-            deltaY = orgEvent.deltaY * -1;
-            delta  = deltaY;
+        if (isMacWebkit) {
+            deltaX /= 30;
+            deltaY /= 30;
         }
-        if ( orgEvent.deltaX ) {
-            deltaX = orgEvent.deltaX;
-            delta  = deltaX * -1;
-        }
 
-        // Webkit
-        if ( orgEvent.wheelDeltaY !== undefined ) { deltaY = orgEvent.wheelDeltaY; }
-        if ( orgEvent.wheelDeltaX !== undefined ) { deltaX = orgEvent.wheelDeltaX * -1; }
+        if (isFirefox && orgEvent.type !== "DOMMouseScroll")
+            orgEvent.target.removeEventListener("DOMMouseScroll", handler, false);
 
-        // Look for lowest delta to normalize the delta values
-        absDelta = Math.abs(delta);
-        if ( !lowestDelta || absDelta < lowestDelta ) { lowestDelta = absDelta; }
-        absDeltaXY = Math.max(Math.abs(deltaY), Math.abs(deltaX));
-        if ( !lowestDeltaXY || absDeltaXY < lowestDeltaXY ) { lowestDeltaXY = absDeltaXY; }
-
-        // Get a whole value for the deltas
-        fn = delta > 0 ? 'floor' : 'ceil';
-        delta  = Math[fn](delta / lowestDelta);
-        deltaX = Math[fn](deltaX / lowestDeltaXY);
-        deltaY = Math[fn](deltaY / lowestDeltaXY);
+        var delta = deltaY || deltaX;
 
         // Add event and delta to the front of the arguments
         args.unshift(event, delta, deltaX, deltaY);

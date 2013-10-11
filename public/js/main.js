@@ -1,10 +1,8 @@
 (function() {
-  var EditAction, Gaze, MoveAction, Reading, Sample, ScaleAction, UndoStack, Word, ZOOM_SENSITIVITY, event_point, move_point, set_CTM, treedraw, _ref,
+  var EditAction, Gaze, MoveAction, Reading, Sample, ScaleAction, UndoStack, Word, event_point, move_point, set_CTM, treedraw, _ref,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
-
-  ZOOM_SENSITIVITY = 0.2;
 
   $.contextMenu.shadow = false;
 
@@ -423,7 +421,7 @@
       $(svg).mousewheel(function(evt, delta, dx, dy) {
         var ctm, k, p, z;
         ctm = _this.root.getCTM();
-        z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360);
+        z = Math.pow(5, dy / 180);
         p = event_point(svg, evt).matrixTransform(ctm.inverse());
         k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
         set_CTM(_this.root, ctm.multiply(k));
@@ -938,7 +936,7 @@
           duration: 0
         },
         build: function($trigger, evt) {
-          var items, last_undo, move_present;
+          var items, last_undo, move_present, _ref1, _ref2;
           last_undo = fixfix.undo.peek();
           move_present = last_undo && (last_undo.constructor === MoveAction);
           items = {
@@ -977,7 +975,7 @@
             },
             select_clear: {
               name: "Selection Clear",
-              disabled: !fixfix.data.gaze.get_selection(),
+              disabled: !(fixfix != null ? (_ref1 = fixfix.data) != null ? (_ref2 = _ref1.gaze) != null ? _ref2.get_selection() : void 0 : void 0 : void 0),
               callback: function(key, options) {
                 fixfix.data.gaze.selection = {
                   start: null,

@@ -1,6 +1,5 @@
 # vim: ts=4:sts=4:sw=4
 
-ZOOM_SENSITIVITY = 0.2
 
 # contextMenu
 $.contextMenu.shadow = false
@@ -291,7 +290,7 @@ class window.FixFix
         $(svg).mousewheel (evt, delta, dx, dy) =>
             # zoom svg
             ctm = @root.getCTM()
-            z = Math.pow(1 + ZOOM_SENSITIVITY, dy / 360)
+            z = Math.pow(5, dy / 180)
             p = event_point(svg, evt).matrixTransform(ctm.inverse())
             k = svg.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y)
             set_CTM(@root, ctm.multiply(k))
@@ -753,13 +752,13 @@ class window.FileBrowser
                             fixfix.scale_selection(last_undo.index, fixfix.scale_point, true, true)
                     select_clear:
                         name: "Selection Clear"
-                        disabled: !fixfix.data.gaze.get_selection()
+                        disabled: !fixfix?.data?.gaze?.get_selection()
                         callback: (key, options) ->
                             fixfix.data.gaze.selection =
                                 start: null
                                 end: null
                             fixfix.data.gaze.unhighlight()
-                            
+
 
                 return {
                     items: items
