@@ -115,15 +115,18 @@ module Routes
       last_modified File.mtime(edit_file).httpdate()
 
       headers = [
-        "GazePointLeftX",
-        "GazePointLeftY",
-        "GazePointRightX",
-        "GazePointRightX",
-        "GazePointX",
-        "GazePointX",
-        "PupilLeft",
-        "PupilRight",
-        "RecordingTimestamp"
+        "FixPointLeftX",
+        "FixPointLeftY",
+        "FixPointRightX",
+        "FixPointRightX",
+        "FixPointX",
+        "FixPointX",
+        "FixDuration",
+        "MeanPupilLeft",
+        "MeanPupilRight",
+        "MeanTimestamp",
+        "StartTimestamp",
+        "EndTimestamp",
       ]
 
       content_type 'text/plain', :charset => 'utf-8'

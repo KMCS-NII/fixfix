@@ -1,7 +1,7 @@
 require 'json'
 
 class Sample
-  attr_accessor :left, :right, :time, :blink, :rs, :duration
+  attr_accessor :left, :right, :time, :blink, :rs, :duration, :start_time, :end_time
 
   def initialize(time, left, right)
     @left = left
@@ -27,9 +27,12 @@ class Sample
       right.y,
       if left.x && right.x then (left.x + right.x) / 2 else nil end,
       if left.y && right.y then (left.y + right.y) / 2 else nil end,
+      duration,
       left.pupil,
       right.pupil,
-      time
+      time,
+      start_time,
+      end_time,
     ]
   end
 
@@ -42,6 +45,8 @@ class Sample
     rep[:blink] = @blink if @blink
     rep[:rs] = @rs if @rs
     rep[:duration] = @duration if @duration
+    rep[:start_time] = @start_time if @start_time
+    rep[:end_time] = @end_time if @end_time
     rep.to_json(*a)
   end
 end
