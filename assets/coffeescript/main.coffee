@@ -58,7 +58,7 @@ class Gaze
     constructor: (@x, @y, @pupil, @validity) ->
 
 class Sample
-    constructor: (@time, @rs, @blink, @left, @right) ->
+    constructor: (@time, @rs, @blink, @left, @right, @duration, @start, @end) ->
 
     build_center: ->
         if @left.x? and @left.y? and @right.x? and @right.y?
@@ -510,7 +510,7 @@ class window.FixFix
                     else if "validity" of v
                         return new Gaze(v.x, v.y, v.pupil, v.validity)
                     else if "time" of v
-                        return new Sample(v.time, v.rs, v.blink, v.left, v.right)
+                        return new Sample(v.time, v.rs, v.blink, v.left, v.right, v.duration, v.start, v.end)
                     else if "samples" of v
                         return new Reading(v.samples, v.flags, v.row_bounds)
                 return v

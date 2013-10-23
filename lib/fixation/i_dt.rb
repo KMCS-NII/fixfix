@@ -79,6 +79,8 @@ class I_DT
 
           c_time += sample.time
         }
+        end_time = window.last.time
+        start_time = window.first.time
         samples.shift(window.size)
 
         left =
@@ -103,6 +105,8 @@ class I_DT
             end
         centroid = Sample.new(c_time / window.size, left, right)
         centroid.duration = window_duration
+        centroid.start_time = start_time
+        centroid.end_time = end_time
         fixations << centroid
       else
         samples.shift
