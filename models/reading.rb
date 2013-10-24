@@ -11,12 +11,14 @@ class Reading
   end
 
   def discard_invalid!()
-    @samples = @samples.select(&:valid?)
+    # DEBUG    @samples = @samples.select(&:valid?)
+    @samples = @samples.select { |sample|
+      sample.valid?
+    }
   end
 
   def find_fixations!()
     fixation = @flags[:fixation]
-    $stderr.puts @flags.inspect
     fixation_algorithm = I_DT.new(fixation[:dispersion], fixation[:duration], fixation[:blink])
     @samples = fixation_algorithm.find_fixations(@samples)
     @flags[:lines] = true

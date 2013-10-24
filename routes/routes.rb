@@ -39,6 +39,11 @@ module Routes
         payload[:bb] = Word.load(file)
       when 'tsv'
         payload[:reading] = Reading.load(file, TobiiParser.new, params)
+      when 'xml'
+        xmlparser = XMLParser.new(file)
+        payload[:reading] = Reading.load(file, xmlparser, params)
+        payload[:bb] = xmlparser.words
+      when 'fixfix'
       end
 
       content_type :json
