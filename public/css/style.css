@@ -12,20 +12,20 @@ html, body {
 .dragging * {
   cursor: pointer; }
 
-#file_browser {
+#sidebar {
   position: fixed;
   top: 0;
   left: 0;
   width: 200px;
   background-color: #ddddee; }
-  #file_browser > * {
+  #sidebar > * {
     padding: 5px 5px 0 5px; }
-  #file_browser > *:last-child {
+  #sidebar > *:last-child {
     padding-bottom: 5px; }
-  #file_browser input[type="range"] {
+  #sidebar input[type="range"] {
     width: 130px;
     margin: 0; }
-  #file_browser input[type="number"] {
+  #sidebar input[type="number"] {
     width: 50px; }
 
 #eye-options label[for="left-eye"] {
@@ -34,15 +34,12 @@ html, body {
   color: blue; }
 
 .browser_container {
-  height: 200px; }
+  height: 300px; }
 
 .browser {
   background-color: #eeeeff;
   height: 100%;
   overflow: auto; }
-  .browser .selected {
-    background-color: blue;
-    color: white; }
 
 #fix-options #scrap-changes, #fix-options.dirty #scrap-options {
   display: none; }
@@ -59,45 +56,45 @@ html, body {
   text-anchor: middle;
   alignment-baseline: middle; }
 
-#gaze.faint circle, #gaze.faint line {
+#reading.faint circle, #reading.faint line {
   opacity: 0.1; }
-#gaze.faint circle.highlight, #gaze.faint line.highlight {
+#reading.faint circle.highlight, #reading.faint line.highlight {
   opacity: inherit; }
-#gaze circle {
+#reading circle {
   fill: none; }
-#gaze circle.drawn {
+#reading circle.drawn {
   stroke: white;
   stroke-width: 0.5px;
   cursor: pointer; }
-  #gaze circle.drawn.left {
+  #reading circle.drawn.left {
     fill: red; }
-  #gaze circle.drawn.right {
+  #reading circle.drawn.right {
     fill: blue; }
-  #gaze circle.drawn.center {
+  #reading circle.drawn.center {
     fill: black; }
-  #gaze circle.drawn.frozen {
+  #reading circle.drawn.frozen {
     stroke: #00ccff;
     stroke-width: 1.3; }
-#gaze line.drawn {
+#reading line.drawn {
   stroke-width: 0.5px; }
-  #gaze line.drawn.left {
+  #reading line.drawn.left {
     stroke: red; }
-  #gaze line.drawn.right {
+  #reading line.drawn.right {
     stroke: blue; }
-  #gaze line.drawn.center {
+  #reading line.drawn.center {
     stroke: black;
     stroke-width: 1.5px; }
-  #gaze line.drawn.inter {
+  #reading line.drawn.inter {
     stroke-width: 0.2px;
     stroke: black; }
-  #gaze line.drawn.rs.left, #gaze line.drawn.rs.right {
+  #reading line.drawn.rs.left, #reading line.drawn.rs.right {
     stroke: none; }
-  #gaze line.drawn.rs.center {
+  #reading line.drawn.rs.center {
     stroke-width: 0.3;
     stroke: #006600; }
-  #gaze line.drawn.blink.left, #gaze line.drawn.blink.right {
+  #reading line.drawn.blink.left, #reading line.drawn.blink.right {
     stroke: none; }
-  #gaze line.drawn.blink.center {
+  #reading line.drawn.blink.center {
     stroke-width: 0.2;
     stroke: #999900; }
 

@@ -13,21 +13,17 @@
     :javascript
       $(function() {
         fixfix = new FixFix('#svg');
-        new FileBrowser(fixfix, '#bb_browser', '#gaze_browser')
+        new FixFixUI(fixfix, '#browser')
       })
     %link(rel="stylesheet" href="#{url("css/jqueryFileTree.css")}")
     %link(rel="stylesheet" href="#{url("css/jquery.contextmenu.css")}")
     %link(rel="stylesheet" href="#{url("css/style.css")}")
   %body
-    #file_browser
+    #sidebar
       .browser_heading
-        Document
+        FixFix
       .browser_container
-        #bb_browser.browser
-      .browser_heading
-        Gaze Data
-      .browser_container
-        #gaze_browser.browser
+        #browser.browser
       %div#fix-options
         %div#eye-options
           Eyes:

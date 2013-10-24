@@ -2,7 +2,8 @@
   var EditAction, Gaze, MoveAction, Reading, Sample, ScaleAction, UndoStack, Word, event_point, move_point, set_CTM, treedraw, _ref,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __slice = [].slice;
 
   $.contextMenu.shadow = false;
 
@@ -88,12 +89,15 @@
   })();
 
   Sample = (function() {
-    function Sample(time, rs, blink, left, right) {
+    function Sample(time, rs, blink, left, right, duration, start, end) {
       this.time = time;
       this.rs = rs;
       this.blink = blink;
       this.left = left;
       this.right = right;
+      this.duration = duration;
+      this.start = start;
+      this.end = end;
     }
 
     Sample.prototype.build_center = function() {
@@ -230,12 +234,12 @@
     };
 
     Reading.prototype.highlight_row_of = function(index) {
-      $('#gaze').addClass('faint');
+      $('#reading').addClass('faint');
       return this.toggle_class_on_row_of(index, 'highlight', true);
     };
 
     Reading.prototype.highlight_range = function(from, to) {
-      $('#gaze').addClass('faint');
+      $('#reading').addClass('faint');
       return this.toggle_class_on_range(from, to, 'highlight', true);
     };
 
@@ -255,14 +259,14 @@
       var selection;
       $('.highlight').removeClass('highlight');
       if ((selection = this.get_selection())) {
-        $('#gaze').addClass('faint');
+        $('#reading').addClass('faint');
         return this.highlight_range(selection.start, selection.end);
       } else {
-        return $('#gaze').removeClass('faint');
+        return $('#reading').removeClass('faint');
       }
     };
 
-    Reading.prototype.save = function(from, to) {
+    Reading.prototype.save = function(file, from, to) {
       var changes, index, payload, sample, _i;
       if (to < from) {
         return;
@@ -279,7 +283,7 @@
         });
       }
       payload = {
-        file: this.opts.file,
+        file: file,
         changes: JSON.stringify(changes)
       };
       return $.ajax({
@@ -311,7 +315,7 @@
       this.index = index;
       this.records = [];
       for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
-        sample = this.data.gaze.samples[index];
+        sample = this.data.reading.samples[index];
         this.records.push([sample.left.x, sample.left.y, sample.center.x, sample.center.y, sample.right.x, sample.right.y]);
       }
     }
@@ -319,9 +323,9 @@
     MoveAction.prototype.restore = function() {
       var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
       for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
-        sample = this.data.gaze.samples[index];
+        sample = this.data.reading.samples[index];
         _ref2 = this.records.shift(), sample.left.x = _ref2[0], sample.left.y = _ref2[1], sample.center.x = _ref2[2], sample.center.y = _ref2[3], sample.right.x = _ref2[4], sample.right.y = _ref2[5];
-        last_sample = this.data.gaze.samples[index - 1];
+        last_sample = this.data.reading.samples[index - 1];
         _ref3 = ['left', 'center', 'right'];
         for (_j = 0, _len = _ref3.length; _j < _len; _j++) {
           eye = _ref3[_j];
@@ -413,9 +417,9 @@
         color: 'black'
       });
       this.svg.polyline(arrow, [[0, 0], [[mw, mh / 2], [0, mh], [mw / 12, mh / 2]]]);
-      this.svg.style(this.defs, "#gaze line.drawn.saccade.highlight { marker-end: url(#arrow) }");
+      this.svg.style(this.defs, "#reading line.drawn.saccade.highlight { marker-end: url(#arrow) }");
       this.bb_group = this.svg.group(this.root, 'bb');
-      this.gaze_group = this.svg.group(this.root, 'gaze');
+      this.reading_group = this.svg.group(this.root, 'reading');
       this.single_mode = false;
       svg = this.svg._svg;
       $(svg).mousewheel(function(evt, delta, dx, dy) {
@@ -436,18 +440,18 @@
             if (node_name === 'circle') {
               $target = $(evt.target);
               index = $target.data('index');
-              _this.data.gaze.highlight_row_of(index);
+              _this.data.reading.highlight_row_of(index);
               if (_this.single_mode) {
                 from = to = index;
               } else {
-                _ref2 = (_ref1 = _this.data.gaze.find_row(index), row_from = _ref1[0], row_to = _ref1[1], _ref1), from = _ref2[0], to = _ref2[1];
+                _ref2 = (_ref1 = _this.data.reading.find_row(index), row_from = _ref1[0], row_to = _ref1[1], _ref1), from = _ref2[0], to = _ref2[1];
                 for (from = _i = index; index <= row_from ? _i <= row_from : _i >= row_from; from = index <= row_from ? ++_i : --_i) {
-                  if (from === row_from || (from !== index && _this.data.gaze.samples[from].frozen)) {
+                  if (from === row_from || (from !== index && _this.data.reading.samples[from].frozen)) {
                     break;
                   }
                 }
                 for (to = _j = index; index <= row_to ? _j <= row_to : _j >= row_to; to = index <= row_to ? ++_j : --_j) {
-                  if (to === row_to || (to !== index && _this.data.gaze.samples[to].frozen)) {
+                  if (to === row_to || (to !== index && _this.data.reading.samples[to].frozen)) {
                     break;
                   }
                 }
@@ -482,7 +486,7 @@
           if (_this.mousedown.index != null) {
             eye = _this.mousedown.eye;
             _ref1 = _this.mousedown.row, from = _ref1[0], to = _ref1[1];
-            sample = _this.data.gaze.samples[_this.mousedown.index];
+            sample = _this.data.reading.samples[_this.mousedown.index];
             point_delta = {
               x: point.x - sample[eye].x,
               y: point.y - sample[eye].y
@@ -490,9 +494,9 @@
             extent = from - _this.mousedown.index;
             a_x = -point_delta.x / (extent * extent);
             a_y = -point_delta.y / (extent * extent);
-            prev_sample = _this.data.gaze.samples[from - 1];
+            prev_sample = _this.data.reading.samples[from - 1];
             for (index = _i = from; from <= to ? _i <= to : _i >= to; index = from <= to ? ++_i : --_i) {
-              sample = _this.data.gaze.samples[index];
+              sample = _this.data.reading.samples[index];
               index_diff = index - _this.mousedown.index;
               if (index_diff === 0) {
                 extent = to - _this.mousedown.index;
@@ -535,7 +539,7 @@
               }
               prev_sample = sample;
             }
-            return sample = _this.data.gaze.samples[_this.mousedown.index];
+            return sample = _this.data.reading.samples[_this.mousedown.index];
           } else {
             return set_CTM(_this.root, unctm.inverse().translate(point.x - _this.mousedown.origin.x, point.y - _this.mousedown.origin.y));
           }
@@ -543,8 +547,8 @@
       });
       stop_drag = function() {
         var _ref1;
-        if (((_ref1 = _this.data) != null ? _ref1.gaze : void 0) != null) {
-          _this.data.gaze.unhighlight();
+        if (((_ref1 = _this.data) != null ? _ref1.reading : void 0) != null) {
+          _this.data.reading.unhighlight();
         }
         _this.mousedrag = false;
         return _this.mousedown = false;
@@ -554,10 +558,10 @@
         if (_this.mousedrag) {
           _this.$svg.removeClass('dragging');
           if (_this.mousedown.index != null) {
-            sample = _this.data.gaze.samples[_this.mousedown.index];
+            sample = _this.data.reading.samples[_this.mousedown.index];
             sample.fix();
             _this.$svg.trigger('dirty');
-            (_ref1 = _this.data.gaze).save.apply(_ref1, _this.mousedown.row);
+            (_ref1 = _this.data.reading).save.apply(_ref1, [_this.reading_file].concat(__slice.call(_this.mousedown.row)));
           }
         }
         return stop_drag();
@@ -572,9 +576,9 @@
 
     FixFix.prototype.scale_selection = function(moved_index, scale_index, affect_x, affect_y) {
       var delta_center_x, delta_center_y, delta_left_x, delta_left_y, delta_right_x, delta_right_y, eye, index, last_sample, last_undo, move_info, moved_sample, sample, scale_delta, scale_sample, selection, _i, _j, _k, _len, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
-      selection = this.data.gaze.get_selection(true);
+      selection = this.data.reading.get_selection(true);
       last_undo = this.undo.peek();
-      moved_sample = this.data.gaze.samples[last_undo.index];
+      moved_sample = this.data.reading.samples[last_undo.index];
       move_info = last_undo.records[last_undo.index - last_undo.from];
       delta_left_x = move_info[0] - moved_sample.left.x;
       delta_left_y = move_info[1] - moved_sample.left.y;
@@ -584,14 +588,14 @@
       delta_right_y = move_info[5] - moved_sample.right.y;
       this.undo.pop();
       this.undo.push(new ScaleAction(this.data, selection.start, selection.end, moved_index));
-      scale_sample = scale_index != null ? this.data.gaze.samples[scale_index] : null;
+      scale_sample = scale_index != null ? this.data.reading.samples[scale_index] : null;
       scale_delta = function(orig_value, moved_orig_value, scale_point_orig_value, delta_at_moved_point) {
         var scale_factor;
         scale_factor = scale_point_orig_value ? (orig_value - scale_point_orig_value) / (moved_orig_value - scale_point_orig_value) : 1;
         return delta_at_moved_point * scale_factor;
       };
       for (index = _i = _ref1 = selection.start, _ref2 = selection.end; _ref1 <= _ref2 ? _i <= _ref2 : _i >= _ref2; index = _ref1 <= _ref2 ? ++_i : --_i) {
-        sample = this.data.gaze.samples[index];
+        sample = this.data.reading.samples[index];
         if (affect_x) {
           sample.left.x -= scale_delta(sample.left.x, moved_sample.left.x, scale_sample && scale_sample.left.x, delta_left_x);
           sample.center.x -= scale_delta(sample.center.x, moved_sample.center.x, scale_sample && scale_sample.center.x, delta_center_x);
@@ -603,9 +607,9 @@
           sample.right.y -= scale_delta(sample.right.y, moved_sample.right.y, scale_sample && scale_sample.right.y, delta_right_y);
         }
       }
-      last_sample = this.data.gaze.samples[selection.start - 1];
+      last_sample = this.data.reading.samples[selection.start - 1];
       for (index = _j = _ref3 = selection.start, _ref4 = selection.end; _ref3 <= _ref4 ? _j <= _ref4 : _j >= _ref4; index = _ref3 <= _ref4 ? ++_j : --_j) {
-        sample = this.data.gaze.samples[index];
+        sample = this.data.reading.samples[index];
         _ref5 = ['left', 'center', 'right'];
         for (_k = 0, _len = _ref5.length; _k < _len; _k++) {
           eye = _ref5[_k];
@@ -631,18 +635,17 @@
         last_sample = sample;
       }
       this.$svg.trigger('dirty');
-      this.data.gaze.save(selection.start, selection.end);
+      this.data.reading.save(this.reading_file, selection.start, selection.end);
       return this.scale_point = moved_index;
     };
 
-    FixFix.prototype.load = function(file, type, opts) {
+    FixFix.prototype.load = function(file) {
       var _this = this;
-      opts = opts || {};
-      opts.file = file;
-      ($.ajax({
-        url: "" + type + ".json",
+      this.opts.load = file;
+      return ($.ajax({
+        url: "load.json",
         dataType: 'json',
-        data: opts,
+        data: this.opts,
         revivers: function(k, v) {
           if ((v != null) && typeof v === 'object') {
             if ("word" in v) {
@@ -650,7 +653,7 @@
             } else if ("validity" in v) {
               return new Gaze(v.x, v.y, v.pupil, v.validity);
             } else if ("time" in v) {
-              return new Sample(v.time, v.rs, v.blink, v.left, v.right);
+              return new Sample(v.time, v.rs, v.blink, v.left, v.right, v.duration, v.start, v.end);
             } else if ("samples" in v) {
               return new Reading(v.samples, v.flags, v.row_bounds);
             }
@@ -658,31 +661,39 @@
           return v;
         }
       })).then(function(data) {
-        var index, sample, _i, _j, _len, _len1, _ref1, _ref2;
-        _this.data[type] = data;
-        _this.data[type].opts = opts;
-        switch (type) {
-          case 'bb':
-            return _this.render_bb();
-          case 'gaze':
-            if (_this.data.gaze.flags.center) {
-              _ref1 = _this.data.gaze.samples;
-              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-                sample = _ref1[_i];
-                sample.build_center();
+        var index, sample, type, _i, _j, _len, _len1, _ref1, _ref2, _results;
+        _results = [];
+        for (type in (data != null ? data.payload : void 0) || []) {
+          _this.data[type] = data.payload[type];
+          _this.data[type].opts = _this.opts;
+          switch (type) {
+            case 'bb':
+              _results.push(_this.render_bb());
+              break;
+            case 'reading':
+              _this.reading_file = file;
+              if (_this.data.reading.flags.center) {
+                _ref1 = _this.data.reading.samples;
+                for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                  sample = _ref1[_i];
+                  sample.build_center();
+                }
               }
-            }
-            _ref2 = _this.data.gaze.samples;
-            for (index = _j = 0, _len1 = _ref2.length; _j < _len1; index = ++_j) {
-              sample = _ref2[index];
-              sample.index = index;
-            }
-            _this.render_gaze();
-            _this.undo = new UndoStack();
-            return _this.$svg.trigger('loaded');
+              _ref2 = _this.data.reading.samples;
+              for (index = _j = 0, _len1 = _ref2.length; _j < _len1; index = ++_j) {
+                sample = _ref2[index];
+                sample.index = index;
+              }
+              _this.render_reading();
+              _this.undo = new UndoStack();
+              _results.push(_this.$svg.trigger('loaded'));
+              break;
+            default:
+              _results.push(void 0);
+          }
         }
+        return _results;
       });
-      return delete opts.cache;
     };
 
     FixFix.prototype.render_bb = function() {
@@ -704,17 +715,14 @@
       return _results;
     };
 
-    FixFix.prototype.render_gaze = function(opts) {
+    FixFix.prototype.render_reading = function() {
       var eye, samples, tree_factor, _results,
         _this = this;
-      $(this.gaze_group).empty();
+      $(this.reading_group).empty();
       tree_factor = 20;
-      if (opts) {
-        this.data.gaze.opts = opts;
-      }
-      samples = this.data.gaze.samples;
-      if (this.data.gaze.flags.lines) {
-        treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
+      samples = this.data.reading.samples;
+      if (this.data.reading.flags.lines) {
+        treedraw(this.svg, this.svg.group(this.reading_group), samples.length, tree_factor, function(parent, index) {
           var sample;
           sample = samples[index];
           if (sample != null) {
@@ -723,10 +731,10 @@
         });
       }
       _results = [];
-      for (eye in this.data.gaze.opts.eyes) {
-        if (this.data.gaze.opts.eyes[eye]) {
-          if (this.data.gaze.flags.lines) {
-            treedraw(this.svg, this.svg.group(this.gaze_group), samples.length - 1, tree_factor, function(parent, index) {
+      for (eye in this.data.reading.opts.eyes) {
+        if (this.data.reading.opts.eyes[eye]) {
+          if (this.data.reading.flags.lines) {
+            treedraw(this.svg, this.svg.group(this.reading_group), samples.length - 1, tree_factor, function(parent, index) {
               var sample1, sample2;
               sample1 = samples[index];
               sample2 = samples[index + 1];
@@ -735,7 +743,7 @@
               }
             });
           }
-          _results.push(treedraw(this.svg, this.svg.group(this.gaze_group), samples.length, tree_factor, function(parent, index) {
+          _results.push(treedraw(this.svg, this.svg.group(this.reading_group), samples.length, tree_factor, function(parent, index) {
             var sample;
             sample = samples[index];
             if (sample != null) {
@@ -753,17 +761,15 @@
 
   })();
 
-  window.FileBrowser = (function() {
-    function FileBrowser(fixfix, bb_browser, gaze_browser) {
-      var $bb_selected, $gaze_selected, fixations, load, load_timer, load_with_delay, opts, set_opts,
+  window.FixFixUI = (function() {
+    function FixFixUI(fixfix, browser) {
+      var fixations, load, load_timer, load_with_delay, nocache, set_opts,
         _this = this;
-      opts = {};
       fixations = null;
-      $bb_selected = $();
-      $gaze_selected = $();
       load_timer = null;
+      nocache = false;
       set_opts = function() {
-        var blink, dispersion, duration, smoothing;
+        var blink, dispersion, duration, opts, smoothing;
         fixations = $('#i-dt').is(':checked');
         if (fixations) {
           dispersion = parseInt($('#dispersion_n').val(), 10);
@@ -779,35 +785,31 @@
         } else {
           opts = {};
         }
-        return opts.eyes = {
+        if (nocache) {
+          opts.nocache = true;
+          nocache = false;
+        } else {
+          delete opts.nocache;
+        }
+        opts.eyes = {
           left: $('#left-eye').is(':checked'),
           center: $('#center-eye').is(':checked'),
           right: $('#right-eye').is(':checked')
         };
+        return fixfix.opts = opts;
       };
-      $(bb_browser).fileTree({
-        script: 'files/bb',
+      $(browser).fileTree({
+        script: 'files',
         multiFolder: false
-      }, function(bb_file, $bb_newly_selected) {
-        _this.bb_file = bb_file;
-        $bb_selected.removeClass('selected');
-        ($bb_selected = $bb_newly_selected).addClass('selected');
-        return fixfix.load(bb_file, 'bb');
-      });
-      $(gaze_browser).fileTree({
-        script: 'files/tsv',
-        multiFolder: false
-      }, function(gaze_file, $gaze_newly_selected) {
-        _this.gaze_file = gaze_file;
-        $gaze_selected.removeClass('selected');
-        ($gaze_selected = $gaze_newly_selected).addClass('selected');
-        opts.cache = true;
-        return fixfix.load(_this.gaze_file, 'gaze', opts);
+      }, function(file, $selected) {
+        delete fixfix.opts.nocache;
+        return fixfix.load(file);
       });
       load = function() {
-        if (_this.gaze_file) {
+        if (fixfix.reading_file) {
+          nocache = true;
           set_opts();
-          return fixfix.load(_this.gaze_file, 'gaze', opts);
+          return fixfix.load(fixfix.reading_file);
         }
       };
       load_with_delay = function(evt) {
@@ -840,14 +842,14 @@
       });
       $('#i-dt').click(load);
       $('#eye-options input').click(function(evt) {
-        if (_this.gaze_file) {
+        if (fixfix.reading_file) {
           set_opts();
-          return fixfix.render_gaze(opts);
+          return fixfix.render_reading();
         }
       });
       fixfix.$svg.on('loaded', function(evt) {
         var fixation_opts, key, value;
-        fixation_opts = fixfix.data.gaze.flags.fixation;
+        fixation_opts = fixfix.data.reading.flags.fixation;
         $('#i-dt').prop('checked', !!fixation_opts);
         if (fixation_opts) {
           for (key in fixation_opts) {
@@ -855,9 +857,9 @@
             $("#" + key + ", #" + key + "-n").val(value);
           }
         }
-        $('#smoothing, #smoothing-n').val(fixfix.data.gaze.flags.smoothing);
-        $('#fix-options').toggleClass('dirty', !!fixfix.data.gaze.flags.dirty);
-        $('#tsv-link').attr('href', "dl" + _this.gaze_file);
+        $('#smoothing, #smoothing-n').val(fixfix.data.reading.flags.smoothing);
+        $('#fix-options').toggleClass('dirty', !!fixfix.data.reading.flags.dirty);
+        $('#tsv-link').attr('href', "dl" + fixfix.reading_file);
         return $('#download').css('display', 'block');
       });
       fixfix.$svg.on('dirty', function(evt) {
@@ -876,8 +878,8 @@
           var eye, from, index, items, sample, to, _ref1;
           index = $trigger.data('index');
           eye = $trigger.data('eye');
-          sample = fixfix.data.gaze.samples[index];
-          _ref1 = fixfix.data.gaze.find_row(index), from = _ref1[0], to = _ref1[1];
+          sample = fixfix.data.reading.samples[index];
+          _ref1 = fixfix.data.reading.find_row(index), from = _ref1[0], to = _ref1[1];
           items = {
             header: {
               name: "#" + index + " " + eye + " (" + sample.time + " ms)",
@@ -898,7 +900,7 @@
                 var _i, _ref2, _results;
                 _results = [];
                 for (index = _i = _ref2 = from + 1; _ref2 <= to ? _i < to : _i > to; index = _ref2 <= to ? ++_i : --_i) {
-                  _results.push(fixfix.data.gaze.samples[index].fix(false));
+                  _results.push(fixfix.data.reading.samples[index].fix(false));
                 }
                 return _results;
               }
@@ -907,15 +909,15 @@
             select_start: {
               name: "Selection Start",
               callback: function(key, options) {
-                fixfix.data.gaze.selection.start = index;
-                return fixfix.data.gaze.unhighlight();
+                fixfix.data.reading.selection.start = index;
+                return fixfix.data.reading.unhighlight();
               }
             },
             select_end: {
               name: "Selection End",
               callback: function(key, options) {
-                fixfix.data.gaze.selection.end = index;
-                return fixfix.data.gaze.unhighlight();
+                fixfix.data.reading.selection.end = index;
+                return fixfix.data.reading.unhighlight();
               }
             },
             scale_point: {
@@ -955,7 +957,7 @@
                 var from, to, _ref1;
                 _ref1 = fixfix.undo.pop(), from = _ref1[0], to = _ref1[1];
                 fixfix.$svg.trigger('dirty');
-                return fixfix.data.gaze.save(from, to);
+                return fixfix.data.reading.save(fixfix.reading_file, from, to);
               }
             },
             mode_sep: "----------",
@@ -975,13 +977,13 @@
             },
             select_clear: {
               name: "Selection Clear",
-              disabled: !(fixfix != null ? (_ref1 = fixfix.data) != null ? (_ref2 = _ref1.gaze) != null ? _ref2.get_selection() : void 0 : void 0 : void 0),
+              disabled: !(fixfix != null ? (_ref1 = fixfix.data) != null ? (_ref2 = _ref1.reading) != null ? _ref2.get_selection() : void 0 : void 0 : void 0),
               callback: function(key, options) {
-                fixfix.data.gaze.selection = {
+                fixfix.data.reading.selection = {
                   start: null,
                   end: null
                 };
-                return fixfix.data.gaze.unhighlight();
+                return fixfix.data.reading.unhighlight();
               }
             }
           };
@@ -993,7 +995,7 @@
       set_opts();
     }
 
-    return FileBrowser;
+    return FixFixUI;
 
   })();
 
