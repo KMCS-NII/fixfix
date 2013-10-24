@@ -11,12 +11,14 @@ class Reading
   end
 
   def discard_invalid!()
-    @samples = @samples.select(&:valid?)
+    # DEBUG    @samples = @samples.select(&:valid?)
+    @samples = @samples.select { |sample|
+      sample.valid?
+    }
   end
 
   def find_fixations!()
     fixation = @flags[:fixation]
-    $stderr.puts @flags.inspect
     fixation_algorithm = I_DT.new(fixation[:dispersion], fixation[:duration], fixation[:blink])
     @samples = fixation_algorithm.find_fixations(@samples)
     @flags[:lines] = true
@@ -101,6 +103,53 @@ class Reading
     return nil unless File.exist?(file)
     version, reading = *Zlib::GzipReader.open(file) { |f| Marshal.load(f) }
     return nil if version != VERSION
+    reading
+  end
+
+  def self.load(file, parser, params)
+    reading = nil
+
+    # for normal editing, just grab the latest version
+    reading = Reading.load_bin(file + '.edit') unless params[:nocache]
+    unless reading
+      # try the smoothing cache, if the smoothing level matches
+      smoothing = params[:smoothing].to_i
+      cache_smoothing = File.open(file + '.smlv') { |f| f.gets.to_i } rescue nil
+      if cache_smoothing && cache_smoothing == smoothing
+        reading = Reading.load_bin(file + '.smoo')
+      end
+
+      unless reading
+        # try the original cache
+        reading = Reading.load_bin(file + '.orig')
+
+        unless reading
+          # load the original
+          reading = Reading.new(parser, file)
+          reading.save_bin(file + '.orig')
+        end
+
+        reading.discard_invalid!
+
+        # median smoothing
+        reading.apply_smoothing!(smoothing) unless smoothing <= 1
+        reading.flags[:smoothing] = smoothing
+        reading.save_bin(file + '.smoo')
+        File.open(file + '.smlv', 'w') { |f| f.puts smoothing }
+      end
+
+      # then find fixations if we needed them, and cache those
+      # too as "edit version"
+      if params[:dispersion]
+        # fixation detection
+        reading.flags[:fixation] = Hash[[:dispersion, :duration, :blink].map { |key|
+          [key, params[key].to_f]
+        }]
+        reading.find_fixations!
+        reading.find_rows!
+      end
+      reading.save_bin(file + '.edit')
+    end
     reading
   end
 

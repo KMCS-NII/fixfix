@@ -4,6 +4,7 @@ gem "sinatra"
 gem 'emk-sinatra-url-for'
 gem "haml"
 gem "rbtree"
+gem "nokogiri"
 
 group :development do
   gem 'pry'

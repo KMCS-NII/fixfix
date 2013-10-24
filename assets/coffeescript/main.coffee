@@ -150,11 +150,11 @@ class Reading
         @toggle_class_on_range(from, to, klass, onoff)
 
     highlight_row_of: (index) ->
-        $('#gaze').addClass('faint')
+        $('#reading').addClass('faint')
         @toggle_class_on_row_of(index, 'highlight', true)
 
     highlight_range: (from, to) ->
-        $('#gaze').addClass('faint')
+        $('#reading').addClass('faint')
         @toggle_class_on_range(from, to, 'highlight', true)
 
     get_selection: (force) ->
@@ -169,12 +169,12 @@ class Reading
     unhighlight: ->
         $('.highlight').removeClass('highlight')
         if (selection = @get_selection())
-            $('#gaze').addClass('faint')
+            $('#reading').addClass('faint')
             @highlight_range(selection.start, selection.end)
         else
-            $('#gaze').removeClass('faint')
+            $('#reading').removeClass('faint')
 
-    save: (from, to) ->
+    save: (file, from, to) ->
         return if to < from
         changes = []
         for index in [from .. to]
@@ -188,7 +188,7 @@ class Reading
             })
 
         payload =
-            file: @opts.file
+            file: file
             changes: JSON.stringify(changes)
 
         $.ajax
@@ -203,7 +203,7 @@ class MoveAction extends EditAction
     constructor: (@data, @from, @to, @index) ->
         @records = []
         for index in [@from .. @to]
-            sample = @data.gaze.samples[index]
+            sample = @data.reading.samples[index]
             @records.push([
                 sample.left.x
                 sample.left.y
@@ -215,7 +215,7 @@ class MoveAction extends EditAction
 
     restore: ->
         for index in [@from .. @to]
-            sample = @data.gaze.samples[index]
+            sample = @data.reading.samples[index]
             [
                 sample.left.x
                 sample.left.y
@@ -224,7 +224,7 @@ class MoveAction extends EditAction
                 sample.right.x
                 sample.right.y
             ] = @records.shift()
-            last_sample = @data.gaze.samples[index - 1]
+            last_sample = @data.reading.samples[index - 1]
             for eye in ['left', 'center', 'right']
                 if sample[eye]?.el
                     sample[eye].el.setAttribute('cx', sample[eye].x)
@@ -280,9 +280,9 @@ class window.FixFix
             color: 'black'
         })
         @svg.polyline(arrow, [[0, 0], [[mw, mh / 2], [0, mh], [mw / 12, mh / 2]]])
-        @svg.style(@defs, "#gaze line.drawn.saccade.highlight { marker-end: url(#arrow) }")
+        @svg.style(@defs, "#reading line.drawn.saccade.highlight { marker-end: url(#arrow) }")
         @bb_group = @svg.group(@root, 'bb')
-        @gaze_group = @svg.group(@root, 'gaze')
+        @reading_group = @svg.group(@root, 'reading')
         @single_mode = false
 
         svg = @svg._svg
@@ -307,16 +307,16 @@ class window.FixFix
                         # move
                         $target = $(evt.target)
                         index = $target.data('index')
-                        @data.gaze.highlight_row_of(index)
+                        @data.reading.highlight_row_of(index)
 
                         if @single_mode
                             from = to = index
                         else
-                            [from, to] = [row_from, row_to] = @data.gaze.find_row(index)
+                            [from, to] = [row_from, row_to] = @data.reading.find_row(index)
                             for from in [index .. row_from]
-                                break if from == row_from or (from != index and @data.gaze.samples[from].frozen)
+                                break if from == row_from or (from != index and @data.reading.samples[from].frozen)
                             for to in [index .. row_to]
-                                break if to == row_to or (to != index and @data.gaze.samples[to].frozen)
+                                break if to == row_to or (to != index and @data.reading.samples[to].frozen)
                         action = new MoveAction(@data, from, to, index)
                         @undo.push(action)
 
@@ -348,16 +348,16 @@ class window.FixFix
                     eye = @mousedown.eye
 
                     [from, to] = @mousedown.row
-                    sample = @data.gaze.samples[@mousedown.index]
+                    sample = @data.reading.samples[@mousedown.index]
                     point_delta =
                         x: point.x - sample[eye].x
                         y: point.y - sample[eye].y
                     extent = from - @mousedown.index
                     a_x = -point_delta.x / (extent * extent)
                     a_y = -point_delta.y / (extent * extent)
-                    prev_sample = @data.gaze.samples[from - 1]
+                    prev_sample = @data.reading.samples[from - 1]
                     for index in [from .. to]
-                        sample = @data.gaze.samples[index]
+                        sample = @data.reading.samples[index]
                         index_diff = index - @mousedown.index
                         if index_diff == 0
                             extent = to - @mousedown.index
@@ -396,7 +396,7 @@ class window.FixFix
                             move_point(prev_sample?.right?.sel, 'x2', 'y2', sample.right)
 
                         prev_sample = sample
-                    sample = @data.gaze.samples[@mousedown.index]
+                    sample = @data.reading.samples[@mousedown.index]
                 else
                     # pan the view
                     set_CTM(@root,
@@ -409,8 +409,8 @@ class window.FixFix
         )
 
         stop_drag = =>
-            if @data?.gaze?
-                @data.gaze.unhighlight()
+            if @data?.reading?
+                @data.reading.unhighlight()
 
             @mousedrag = false
             @mousedown = false
@@ -422,10 +422,10 @@ class window.FixFix
 
                 if @mousedown.index?
                     # it was a move
-                    sample = @data.gaze.samples[@mousedown.index]
+                    sample = @data.reading.samples[@mousedown.index]
                     sample.fix()
                     @$svg.trigger('dirty')
-                    @data.gaze.save(@mousedown.row...)
+                    @data.reading.save(@reading_file, @mousedown.row...)
 
             stop_drag()
         )
@@ -436,10 +436,10 @@ class window.FixFix
                 stop_drag()
 
     scale_selection: (moved_index, scale_index, affect_x, affect_y) ->
-        selection = @data.gaze.get_selection(true)
+        selection = @data.reading.get_selection(true)
         last_undo = @undo.peek()
 
-        moved_sample = @data.gaze.samples[last_undo.index]
+        moved_sample = @data.reading.samples[last_undo.index]
         move_info = last_undo.records[last_undo.index - last_undo.from]
 
         delta_left_x = move_info[0] - moved_sample.left.x
@@ -451,7 +451,7 @@ class window.FixFix
 
         @undo.pop()
         @undo.push(new ScaleAction(@data, selection.start, selection.end, moved_index))
-        scale_sample = if scale_index? then @data.gaze.samples[scale_index] else null
+        scale_sample = if scale_index? then @data.reading.samples[scale_index] else null
 
         scale_delta = (orig_value, moved_orig_value, scale_point_orig_value, delta_at_moved_point) ->
             scale_factor =
@@ -462,7 +462,7 @@ class window.FixFix
             delta_at_moved_point * scale_factor
 
         for index in [selection.start .. selection.end]
-            sample = @data.gaze.samples[index]
+            sample = @data.reading.samples[index]
             if affect_x
                 sample.left.x -= scale_delta(sample.left.x, moved_sample.left.x, scale_sample and scale_sample.left.x, delta_left_x)
                 sample.center.x -= scale_delta(sample.center.x, moved_sample.center.x, scale_sample and scale_sample.center.x, delta_center_x)
@@ -472,9 +472,9 @@ class window.FixFix
                 sample.center.y -= scale_delta(sample.center.y, moved_sample.center.y, scale_sample and scale_sample.center.y, delta_center_y)
                 sample.right.y -= scale_delta(sample.right.y, moved_sample.right.y, scale_sample and scale_sample.right.y, delta_right_y)
 
-        last_sample = @data.gaze.samples[selection.start - 1]
+        last_sample = @data.reading.samples[selection.start - 1]
         for index in [selection.start .. selection.end]
-            sample = @data.gaze.samples[index]
+            sample = @data.reading.samples[index]
             for eye in ['left', 'center', 'right']
                 if sample[eye]?.el
                     sample[eye].el.setAttribute('cx', sample[eye].x)
@@ -493,16 +493,15 @@ class window.FixFix
             last_sample = sample
 
         @$svg.trigger('dirty')
-        @data.gaze.save(selection.start, selection.end)
+        @data.reading.save(@reading_file, selection.start, selection.end)
         @scale_point = moved_index
 
-    load: (file, type, opts) ->
-        opts = opts || {}
-        opts.file = file
+    load: (file) ->
+        @opts.load = file
         ($.ajax
-            url: "#{type}.json"
+            url: "load.json"
             dataType: 'json'
-            data: opts
+            data: @opts
             revivers: (k, v) ->
                 if v? and typeof(v) == 'object'
                     if "word" of v
@@ -515,20 +514,21 @@ class window.FixFix
                         return new Reading(v.samples, v.flags, v.row_bounds)
                 return v
         ).then (data) =>
-            @data[type] = data
-            @data[type].opts = opts
-            switch type
-                when 'bb' then @render_bb()
-                when 'gaze'
-                    if @data.gaze.flags.center
-                        for sample in @data.gaze.samples
-                            sample.build_center()
-                    for sample, index in @data.gaze.samples
-                        sample.index = index
-                    @render_gaze()
-                    @undo = new UndoStack()
-                    @$svg.trigger('loaded')
-        delete opts.cache
+            for type of data?.payload || []
+                @data[type] = data.payload[type]
+                @data[type].opts = this.opts
+                switch type
+                    when 'bb' then @render_bb()
+                    when 'reading'
+                        @reading_file = file
+                        if @data.reading.flags.center
+                            for sample in @data.reading.samples
+                                sample.build_center()
+                        for sample, index in @data.reading.samples
+                            sample.index = index
+                        @render_reading()
+                        @undo = new UndoStack()
+                        @$svg.trigger('loaded')
 
     render_bb: ->
         $(@bb_group).empty()
@@ -540,41 +540,36 @@ class window.FixFix
         for word in @data.bb
             word.render_word(@svg, text_group)
 
-    render_gaze: (opts) ->
-        $(@gaze_group).empty()
+    render_reading: ->
+        $(@reading_group).empty()
         tree_factor = 20
 
-        if opts
-            @data.gaze.opts = opts
-        
-        samples = @data.gaze.samples
+        samples = @data.reading.samples
         # TODO remove flags.center
-        if @data.gaze.flags.lines
-            treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
+        if @data.reading.flags.lines
+            treedraw @svg, @svg.group(@reading_group), samples.length, tree_factor, (parent, index) =>
                 sample = samples[index]
                 if sample?
                     sample.render_intereye(@svg, parent)
-        for eye of @data.gaze.opts.eyes
-            if @data.gaze.opts.eyes[eye]
-                if @data.gaze.flags.lines
-                    treedraw @svg, @svg.group(@gaze_group), samples.length - 1, tree_factor, (parent, index) =>
+        for eye of @data.reading.opts.eyes
+            if @data.reading.opts.eyes[eye]
+                if @data.reading.flags.lines
+                    treedraw @svg, @svg.group(@reading_group), samples.length - 1, tree_factor, (parent, index) =>
                         sample1 = samples[index]
                         sample2 = samples[index + 1]
                         if sample1? and sample2?
                             sample1.render_saccade(@svg, parent, eye, sample2)
-                treedraw @svg, @svg.group(@gaze_group), samples.length, tree_factor, (parent, index) =>
+                treedraw @svg, @svg.group(@reading_group), samples.length, tree_factor, (parent, index) =>
                     sample = samples[index]
                     if sample?
                         sample.render(@svg, parent, eye)
 
 
-class window.FileBrowser
-    constructor: (fixfix, bb_browser, gaze_browser) ->
-        opts = {}
+class window.FixFixUI
+    constructor: (fixfix, browser) ->
         fixations = null
-        $bb_selected = $()
-        $gaze_selected = $()
         load_timer = null
+        nocache = false
 
         set_opts = ->
             fixations = $('#i-dt').is(':checked')
@@ -591,34 +586,32 @@ class window.FileBrowser
             else
                 opts = {}
 
+            if nocache
+                opts.nocache = true
+                nocache = false
+            else
+                delete opts.nocache
+
             opts.eyes =
                 left: $('#left-eye').is(':checked')
                 center: $('#center-eye').is(':checked')
                 right: $('#right-eye').is(':checked')
 
-        $(bb_browser).fileTree {
-                script: 'files/bb'
+            fixfix.opts = opts
+
+        $(browser).fileTree {
+                script: 'files'
                 multiFolder: false,
             },
-            (@bb_file, $bb_newly_selected) =>
-                $bb_selected.removeClass('selected')
-                ($bb_selected = $bb_newly_selected).addClass('selected')
-                fixfix.load(bb_file, 'bb')
-
-        $(gaze_browser).fileTree {
-            script: 'files/tsv'
-            multiFolder: false,
-            },
-            (@gaze_file, $gaze_newly_selected) =>
-                $gaze_selected.removeClass('selected')
-                ($gaze_selected = $gaze_newly_selected).addClass('selected')
-                opts.cache = true
-                fixfix.load(@gaze_file, 'gaze', opts)
+            (file, $selected) =>
+                delete fixfix.opts.nocache
+                fixfix.load(file)
 
         load = =>
-            if @gaze_file
+            if fixfix.reading_file
+                nocache = true
                 set_opts()
-                fixfix.load(@gaze_file, 'gaze', opts)
+                fixfix.load(fixfix.reading_file)
 
         load_with_delay = (evt) =>
             clearTimeout(load_timer)
@@ -646,19 +639,19 @@ class window.FileBrowser
 
         # TODO don't redraw things that are already drawn
         $('#eye-options input').click (evt) =>
-            if @gaze_file
+            if fixfix.reading_file
                 set_opts()
-                fixfix.render_gaze(opts)
+                fixfix.render_reading()
 
         fixfix.$svg.on('loaded', (evt) =>
-            fixation_opts = fixfix.data.gaze.flags.fixation
+            fixation_opts = fixfix.data.reading.flags.fixation
             $('#i-dt').prop('checked', !!fixation_opts)
             if fixation_opts
                 for key, value of fixation_opts
                     $("##{key}, ##{key}-n").val(value)
-            $('#smoothing, #smoothing-n').val(fixfix.data.gaze.flags.smoothing)
-            $('#fix-options').toggleClass('dirty', !!fixfix.data.gaze.flags.dirty)
-            $('#tsv-link').attr('href', "dl#{@gaze_file}")
+            $('#smoothing, #smoothing-n').val(fixfix.data.reading.flags.smoothing)
+            $('#fix-options').toggleClass('dirty', !!fixfix.data.reading.flags.dirty)
+            $('#tsv-link').attr('href', "dl#{fixfix.reading_file}")
             $('#download').css('display', 'block')
         )
 
@@ -677,8 +670,8 @@ class window.FileBrowser
             build: ($trigger, evt) ->
                 index = $trigger.data('index')
                 eye = $trigger.data('eye')
-                sample = fixfix.data.gaze.samples[index]
-                [from, to] = fixfix.data.gaze.find_row(index)
+                sample = fixfix.data.reading.samples[index]
+                [from, to] = fixfix.data.reading.find_row(index)
 
                 items =
                     header:
@@ -695,18 +688,18 @@ class window.FileBrowser
                         name: "Unfreeze Row"
                         callback: (key, options) ->
                             for index in [from + 1 ... to]
-                                fixfix.data.gaze.samples[index].fix(false)
+                                fixfix.data.reading.samples[index].fix(false)
                     separator1: "----------"
                     select_start:
                         name: "Selection Start"
                         callback: (key, options) ->
-                            fixfix.data.gaze.selection.start = index
-                            fixfix.data.gaze.unhighlight()
+                            fixfix.data.reading.selection.start = index
+                            fixfix.data.reading.unhighlight()
                     select_end:
                         name: "Selection End"
                         callback: (key, options) ->
-                            fixfix.data.gaze.selection.end = index
-                            fixfix.data.gaze.unhighlight()
+                            fixfix.data.reading.selection.end = index
+                            fixfix.data.reading.unhighlight()
                     scale_point:
                         name: "Scale Point"
                         callback: (key, options) ->
@@ -738,7 +731,7 @@ class window.FileBrowser
                         callback: (key, options) ->
                             [from, to] = fixfix.undo.pop()
                             fixfix.$svg.trigger('dirty')
-                            fixfix.data.gaze.save(from, to)
+                            fixfix.data.reading.save(fixfix.reading_file, from, to)
                     mode_sep: "----------"
                     move:
                         name: "Move"
@@ -752,12 +745,12 @@ class window.FileBrowser
                             fixfix.scale_selection(last_undo.index, fixfix.scale_point, true, true)
                     select_clear:
                         name: "Selection Clear"
-                        disabled: !fixfix?.data?.gaze?.get_selection()
+                        disabled: !fixfix?.data?.reading?.get_selection()
                         callback: (key, options) ->
-                            fixfix.data.gaze.selection =
+                            fixfix.data.reading.selection =
                                 start: null
                                 end: null
-                            fixfix.data.gaze.unhighlight()
+                            fixfix.data.reading.unhighlight()
 
 
                 return {

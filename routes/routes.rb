@@ -26,60 +26,25 @@ module Routes
     end
 
     # serve the data JSON
-    app.get '/:type.json' do |type|
-      file = File.join('data', params[:file])
+    app.get '/load.json' do
+      file = File.join('data', params[:load])
       ensure_sandboxed(file, 'data')
 
-      data = 
-          case type
-          when "bb"
-            Word.load(file)
-          when "gaze"
-            reading = nil
+      payload = {}
+      data = { payload: payload }
 
-            # for normal editing, just grab the latest version
-            reading = Reading.load_bin(file + '.edit') if params[:cache]
-            unless reading
-              # try the smoothing cache, if the smoothing level matches
-              smoothing = params[:smoothing].to_i
-              cache_smoothing = File.open(file + '.smlv') { |f| f.gets.to_i } rescue nil
-              if cache_smoothing && cache_smoothing == smoothing
-                reading = Reading.load_bin(file + '.smoo')
-              end
-
-              unless reading
-                # try the original cache
-                reading = Reading.load_bin(file + '.orig')
-
-                unless reading
-                  # load the original
-                  reading = Reading.new(TobiiParser.new, file)
-                  reading.save_bin(file + '.orig')
-                end
-
-                reading.discard_invalid!
-
-                # median smoothing
-                reading.apply_smoothing!(smoothing) unless smoothing <= 1
-                reading.flags[:smoothing] = smoothing
-                reading.save_bin(file + '.smoo')
-                File.open(file + '.smlv', 'w') { |f| f.puts smoothing }
-              end
-
-              # then find fixations if we needed them, and cache those
-              # too as "edit version"
-              if params[:dispersion]
-                # fixation detection
-                reading.flags[:fixation] = Hash[[:dispersion, :duration, :blink].map { |key|
-                  [key, params[key].to_f]
-                }]
-                reading.find_fixations!
-                reading.find_rows!
-              end
-              reading.save_bin(file + '.edit')
-            end
-            reading
-          end
+      extension = File.extname(file)[1 .. -1]
+      case extension
+      when 'bb'
+        payload[:bb] = Word.load(file)
+      when 'tsv'
+        payload[:reading] = Reading.load(file, TobiiParser.new, params)
+      when 'xml'
+        xmlparser = XMLParser.new(file)
+        payload[:reading] = Reading.load(file, xmlparser, params)
+        payload[:bb] = xmlparser.words
+      when 'fixfix'
+      end
 
       content_type :json
       data.to_json
@@ -142,7 +107,7 @@ module Routes
     end
 
     # file browser (by file extension)
-    app.post '/files/:ext' do |ext|
+    app.post '/files' do
       dir = params[:dir]
       path = File.join('data', dir) 
       ensure_sandboxed(path, 'data')
@@ -151,7 +116,8 @@ module Routes
           select { |item| File.directory?(item) }.
           map { |item| item[path.length .. -1] }.
           sort
-      files = Dir[File.join(path, "*.#{ext}")].
+      files = Dir[File.join(path, "*")].
+          select { |item| %w(bb tsv fixfix xml).include?(File.extname(item)[1 .. -1]) }.
           map { |item| item[path.length .. -1] }.
           sort
 
