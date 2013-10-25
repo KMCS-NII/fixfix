@@ -21,18 +21,18 @@ class Sample
 
   def to_a
     [
-      left.x,
-      left.y,
-      right.x,
-      right.y,
-      if left.x && right.x then (left.x + right.x) / 2 else nil end,
-      if left.y && right.y then (left.y + right.y) / 2 else nil end,
-      duration,
-      left.pupil,
-      right.pupil,
-      time,
-      start_time,
-      end_time,
+      left.x.round,
+      left.y.round,
+      right.x.round,
+      right.y.round,
+      if left.x && right.x then ((left.x + right.x) / 2).round else nil end,
+      if left.y && right.y then ((left.y + right.y) / 2).round else nil end,
+      duration.round,
+      left.pupil.round(2),
+      right.pupil.round(2),
+      time.round,
+      start_time.round,
+      end_time.round,
     ]
   end
 
