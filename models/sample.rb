@@ -30,10 +30,25 @@ class Sample
       duration.round,
       left.pupil.round(2),
       right.pupil.round(2),
+      blink,
+      rs ? 1 : nil,
       time.round,
       start_time.round,
       end_time.round,
     ]
+  end
+
+  def self.from_a(lx, ly, rx, ry, cx, cy, duration, lp, rp, blink, rs, time, stime, etime)
+    left = Gaze.new(lx, ly, lp, 0)
+    right = Gaze.new(rx, ry, rp, 0)
+    sample = Sample.new(time, left, right)
+    sample.duration = duration
+    sample.start_time = stime
+    sample.end_time = etime
+    sample.blink = blink
+    sample.rs = rs == 1
+    $stderr.puts sample.to_a.inspect
+    sample
   end
 
   def to_json(*a)

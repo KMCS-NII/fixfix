@@ -1,6 +1,10 @@
 class TobiiParser
-  def parse(file)
-    File.open(file, 'r:utf-8') do |f|
+  def initialize(file)
+    @file = file
+  end
+
+  def parse
+    File.open(@file, 'r:utf-8') do |f|
       # ignore the header
       f.gets
 

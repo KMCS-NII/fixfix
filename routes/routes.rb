@@ -38,12 +38,13 @@ module Routes
       when 'bb'
         payload[:bb] = Word.load(file)
       when 'tsv'
-        payload[:reading] = Reading.load(file, TobiiParser.new, params)
+        payload[:reading] = Reading.load(file, TobiiParser.new(file), params)
       when 'xml'
         xmlparser = XMLParser.new(file)
-        payload[:reading] = Reading.load(file, xmlparser, params)
+        payload[:reading] = Reading.load(file, xmlparser, params).find_rows!
         payload[:bb] = xmlparser.words
       when 'fixfix'
+        payload[:reading] = Reading.load(file, FixFixParser.new(file), params, true).find_rows!
       end
 
       content_type :json
@@ -73,6 +74,7 @@ module Routes
       response.headers["Expires"] = "0"
 
       file = File.join('data', params[:splat])
+      file.chomp!(".fixfix")
       ensure_sandboxed(file, 'data')
       edit_file = file + '.edit'
       reading = Reading.load_bin(edit_file)
@@ -89,6 +91,8 @@ module Routes
         "FixDuration",
         "MeanPupilLeft",
         "MeanPupilRight",
+        "ReturnSweep",
+        "BlinkTime",
         "MeanTimestamp",
         "StartTimestamp",
         "EndTimestamp",

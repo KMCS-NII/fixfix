@@ -175,11 +175,11 @@
         _ref1 = _ref[_i], from = _ref1[0], to = _ref1[1];
         this.samples[from].frozen = true;
         this.samples[to].frozen = true;
-        this.selection = {
-          start: null,
-          end: null
-        };
       }
+      this.selection = {
+        start: null,
+        end: null
+      };
     }
 
     Reading.prototype.find_row = function(index) {
@@ -655,7 +655,7 @@
             } else if ("time" in v) {
               return new Sample(v.time, v.rs, v.blink, v.left, v.right, v.duration, v.start, v.end);
             } else if ("samples" in v) {
-              return new Reading(v.samples, v.flags, v.row_bounds);
+              return new Reading(v.samples, v.flags, v.row_bounds || []);
             }
           }
           return v;
@@ -848,18 +848,20 @@
         }
       });
       fixfix.$svg.on('loaded', function(evt) {
-        var fixation_opts, key, value;
+        var fixation_opts, fixation_opts_active, key, value;
         fixation_opts = fixfix.data.reading.flags.fixation;
+        fixation_opts_active = fixation_opts instanceof Object;
         $('#i-dt').prop('checked', !!fixation_opts);
-        if (fixation_opts) {
+        if (fixation_opts_active) {
           for (key in fixation_opts) {
             value = fixation_opts[key];
             $("#" + key + ", #" + key + "-n").val(value);
           }
         }
+        $('#scrap-options').toggleClass('hide-fix', !!fixation_opts && !fixation_opts_active);
         $('#smoothing, #smoothing-n').val(fixfix.data.reading.flags.smoothing);
         $('#fix-options').toggleClass('dirty', !!fixfix.data.reading.flags.dirty);
-        $('#tsv-link').attr('href', "dl" + fixfix.reading_file);
+        $('#tsv-link').attr('href', "dl" + fixfix.reading_file + ".fixfix");
         return $('#download').css('display', 'block');
       });
       fixfix.$svg.on('dirty', function(evt) {
@@ -933,7 +935,7 @@
         }
       });
       $.contextMenu({
-        selector: 'body',
+        selector: 'svg',
         animation: {
           duration: 0
         },

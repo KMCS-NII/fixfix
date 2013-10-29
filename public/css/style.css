@@ -41,7 +41,7 @@ html, body {
   height: 100%;
   overflow: auto; }
 
-#fix-options #scrap-changes, #fix-options.dirty #scrap-options {
+#fix-options #scrap-changes, #fix-options.dirty #scrap-options, #fix-options #scrap-options.hide-fix {
   display: none; }
 #fix-options #scrap-options, #fix-options.dirty #scrap-changes {
   display: block; }
