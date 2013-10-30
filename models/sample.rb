@@ -47,7 +47,6 @@ class Sample
     sample.end_time = etime
     sample.blink = blink
     sample.rs = rs == 1
-    $stderr.puts sample.to_a.inspect
     sample
   end
 

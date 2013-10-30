@@ -130,7 +130,6 @@ module Routes
 
     app.post '/upload' do
       params.each do |name, file|
-        $stderr.puts 'data' + name
         ensure_sandboxed('data' + name, 'data')
       end
 
