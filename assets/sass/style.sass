@@ -42,13 +42,18 @@ html, body
   background-color: #eeeeff
   height: 100%
   overflow: auto
+  .hover
+    background-color: #ccccff
+
+.droptarget
+  background-color: #ccccff
 
 //  .selected
 //    background-color: #0000ff
 //    color: #ffffff
 
 #fix-options
-  #scrap-changes, &.dirty #scrap-options
+  #scrap-changes, &.dirty #scrap-options, #scrap-options.hide-fix
     display: none
   #scrap-options, &.dirty #scrap-changes
     display: block

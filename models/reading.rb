@@ -1,12 +1,10 @@
-require 'csv'
-
 class Reading
   attr_accessor :flags, :samples
 
-  VERSION = [0, 0, 1]
+  VERSION = [0, 0, 2]
 
   def initialize(parser, filename)
-    @samples = parser.parse(filename)
+    @samples = parser.parse
     @flags = parser.flags
   end
 
@@ -62,6 +60,7 @@ class Reading
       last_index = i
     end
     @row_bounds << [from, @samples.size - 1] unless streak
+    self
   end
 
   def apply_smoothing!(window_size)
@@ -106,17 +105,20 @@ class Reading
     reading
   end
 
-  def self.load(file, parser, params)
+  def self.load(file, parser, params, processed=false)
     reading = nil
 
     # for normal editing, just grab the latest version
     reading = Reading.load_bin(file + '.edit') unless params[:nocache]
+
     unless reading
-      # try the smoothing cache, if the smoothing level matches
-      smoothing = params[:smoothing].to_i
-      cache_smoothing = File.open(file + '.smlv') { |f| f.gets.to_i } rescue nil
-      if cache_smoothing && cache_smoothing == smoothing
-        reading = Reading.load_bin(file + '.smoo')
+      unless processed
+        # try the smoothing cache, if the smoothing level matches
+        smoothing = params[:smoothing].to_i
+        cache_smoothing = File.open(file + '.smlv') { |f| f.gets.to_i } rescue nil
+        if cache_smoothing && cache_smoothing == smoothing
+          reading = Reading.load_bin(file + '.smoo')
+        end
       end
 
       unless reading
@@ -129,24 +131,28 @@ class Reading
           reading.save_bin(file + '.orig')
         end
 
-        reading.discard_invalid!
+        unless processed
+          reading.discard_invalid!
 
-        # median smoothing
-        reading.apply_smoothing!(smoothing) unless smoothing <= 1
-        reading.flags[:smoothing] = smoothing
-        reading.save_bin(file + '.smoo')
-        File.open(file + '.smlv', 'w') { |f| f.puts smoothing }
+          # median smoothing
+          reading.apply_smoothing!(smoothing) unless smoothing <= 1
+          reading.flags[:smoothing] = smoothing
+          reading.save_bin(file + '.smoo')
+          File.open(file + '.smlv', 'w') { |f| f.puts smoothing }
+        end
       end
 
-      # then find fixations if we needed them, and cache those
-      # too as "edit version"
-      if params[:dispersion]
-        # fixation detection
-        reading.flags[:fixation] = Hash[[:dispersion, :duration, :blink].map { |key|
-          [key, params[key].to_f]
-        }]
-        reading.find_fixations!
-        reading.find_rows!
+      unless processed
+        # then find fixations if we needed them, and cache those
+        # too as "edit version"
+        if params[:dispersion]
+          # fixation detection
+          reading.flags[:fixation] = Hash[[:dispersion, :duration, :blink].map { |key|
+            [key, params[key].to_f]
+          }]
+          reading.find_fixations!
+          reading.find_rows!
+        end
       end
       reading.save_bin(file + '.edit')
     end

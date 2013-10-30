@@ -16,7 +16,7 @@ class XMLParser
     }
   end
 
-  def parse(file)
+  def parse
     doc_and_words
 
     @doc.css('Events > Fix[Dur]').map { |element|
