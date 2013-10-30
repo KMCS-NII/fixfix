@@ -40,6 +40,11 @@ html, body {
   background-color: #eeeeff;
   height: 100%;
   overflow: auto; }
+  .browser .hover {
+    background-color: #ccccff; }
+
+.droptarget {
+  background-color: #ccccff; }
 
 #fix-options #scrap-changes, #fix-options.dirty #scrap-options, #fix-options #scrap-options.hide-fix {
   display: none; }

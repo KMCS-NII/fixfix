@@ -68,13 +68,13 @@ module Routes
       reading.save_bin(file + '.edit')
     end
 
-    app.get '/dl/*' do
+    app.get '/dl/:type/*' do |type, *splat|
+      # TODO: type is ignored, but could be other than "fixfix"
       response.headers["Pragma"] = "no-cache"
       response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
       response.headers["Expires"] = "0"
 
-      file = File.join('data', params[:splat])
-      file.chomp!(".fixfix")
+      file = File.join('data', splat)
       ensure_sandboxed(file, 'data')
       edit_file = file + '.edit'
       reading = Reading.load_bin(edit_file)
@@ -126,6 +126,21 @@ module Routes
           sort
 
       haml :file_tree, :locals => { dir: dir, dirs: dirs, files: files }
+    end
+
+    app.post '/upload' do
+      params.each do |name, file|
+        $stderr.puts 'data' + name
+        ensure_sandboxed('data' + name, 'data')
+      end
+
+      params.each do |name, file|
+        File.open('data' + name, 'w') do |f|
+          f.write(file[:tempfile].read)
+        end
+      end
+
+      ""
     end
   end
 end

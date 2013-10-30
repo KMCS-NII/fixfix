@@ -16,6 +16,7 @@ event_point = (svg, evt) ->
     p.y = evt.clientY
     p
 
+
 move_point = (element, x_attr, y_attr, point) ->
     if element
         element.setAttribute(x_attr, point.x)
@@ -643,7 +644,7 @@ class window.FixFixUI
                 set_opts()
                 fixfix.render_reading()
 
-        fixfix.$svg.on('loaded', (evt) =>
+        fixfix.$svg.on 'loaded', (evt) =>
             fixation_opts = fixfix.data.reading.flags.fixation
             fixation_opts_active = fixation_opts instanceof Object
             $('#i-dt').prop('checked', !!fixation_opts)
@@ -653,16 +654,98 @@ class window.FixFixUI
             $('#scrap-options').toggleClass('hide-fix', !!fixation_opts && !fixation_opts_active)
             $('#smoothing, #smoothing-n').val(fixfix.data.reading.flags.smoothing)
             $('#fix-options').toggleClass('dirty', !!fixfix.data.reading.flags.dirty)
-            $('#tsv-link').attr('href', "dl#{fixfix.reading_file}.fixfix")
+            reading_file_name = fixfix.reading_file.replace(/^.*\/([^/]*)\.[^/.]+$/, '$1')
+            $('#fixfix-link').attr
+                href: "dl/fixfix#{fixfix.reading_file}"
+                download: "#{reading_file_name}.fixfix"
             $('#download').css('display', 'block')
-        )
 
-        fixfix.$svg.on('dirty', (evt) ->
+        fixfix.$svg.on 'dirty', (evt) ->
             $('#fix-options').addClass('dirty')
-        )
         $('#scrap-changes-btn').click (evt) =>
             load()
             fixfix.$svg.trigger('clean')
+
+
+        jQuery_xhr_factory = $.ajaxSettings.xhr
+        exts = ['xml', 'fixfix', 'tsv', 'bb']
+        upload = (files, $ul, dir) ->
+            for file in files
+                # find extension
+                [_, ext] = file.name.match /\.([^./]+)$/
+                continue if exts.indexOf(ext) == -1
+
+                # insert into file browser
+                $a = $ul.find('a[rel$="/' + file.name + '"]')
+                if $a.length
+                    # exists
+                    $li = $a.parent()
+                else
+                    $a = $('<a href="#"/>').text(file.name).attr('rel', dir + file.name)
+                    $li = $('<li class="file"/>').addClass('ext_' + ext).append($a)
+                    $ul.append($li)
+
+                # perform upload
+                form = new FormData()
+                form.append(dir + file.name, file)
+                (($li) ->
+                    $.ajax
+                        url: 'upload'
+                        data: form
+                        type: "POST"
+                        contentType: false
+                        processData: false
+                        xhr: ->
+                            req = jQuery_xhr_factory()
+                            req.upload.addEventListener "progress", this.progressUpload, false
+                            req
+                        progressUpload: (evt) ->
+                            progress = Math.round(100 * evt.loaded / evt.total)
+                            $li.css('background', "linear-gradient(to right, rgba(255,255,255,0.30) 0%,rgba(0,0,255,0.30) #{progress}%,rgba(0,0,0,0) #{progress}%,rgba(0,0,0,0) 100%)")
+                        success: ->
+                            $li.css('background', '')
+                        error: ->
+                            $li.remove()
+                )($li)
+
+                
+        $('#browser').on 'dragover', (evt) ->
+            evt.preventDefault()
+            evt.stopPropagation()
+        $('#browser').on 'dragenter', (evt) ->
+            evt.preventDefault()
+            evt.stopPropagation()
+        $('#browser').on 'drop', (evt) ->
+            if evt.originalEvent.dataTransfer?.files?.length
+                evt.preventDefault()
+                evt.stopPropagation()
+                # find out the directory
+                is_root = evt.target.id == 'browser'
+                $target = $(evt.target)
+                unless is_root
+                    if $target[0].tagName isnt 'A'
+                        $target = $target.children('a')
+                    $target_li = $target.parent()
+                path = if is_root then '/' else $target.attr('rel')
+                [_, target_directory, target_file] = path.match /^(.*\/)([^/]*)$/
+
+                window.$t = $target
+                if is_root
+                    $ul = $target.children('ul')
+                else if target_file
+                    $ul = $target.closest('ul')
+                else if $target_li.hasClass('expanded')
+                    $ul = $target.next()
+                
+                if $ul
+                    upload(evt.originalEvent.dataTransfer.files, $ul, target_directory)
+                else
+                    # open the directory
+                    files = evt.originalEvent.dataTransfer.files
+                    $target_li.one 'show', (evt, $li) ->
+                        $ul = $li.children('ul')
+                        upload(files, $ul, target_directory)
+                    $target.click()
 
 
         $(fixfix.svg._svg).contextMenu({

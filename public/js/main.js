@@ -763,7 +763,7 @@
 
   window.FixFixUI = (function() {
     function FixFixUI(fixfix, browser) {
-      var fixations, load, load_timer, load_with_delay, nocache, set_opts,
+      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, nocache, set_opts, upload,
         _this = this;
       fixations = null;
       load_timer = null;
@@ -848,7 +848,7 @@
         }
       });
       fixfix.$svg.on('loaded', function(evt) {
-        var fixation_opts, fixation_opts_active, key, value;
+        var fixation_opts, fixation_opts_active, key, reading_file_name, value;
         fixation_opts = fixfix.data.reading.flags.fixation;
         fixation_opts_active = fixation_opts instanceof Object;
         $('#i-dt').prop('checked', !!fixation_opts);
@@ -861,7 +861,11 @@
         $('#scrap-options').toggleClass('hide-fix', !!fixation_opts && !fixation_opts_active);
         $('#smoothing, #smoothing-n').val(fixfix.data.reading.flags.smoothing);
         $('#fix-options').toggleClass('dirty', !!fixfix.data.reading.flags.dirty);
-        $('#tsv-link').attr('href', "dl" + fixfix.reading_file + ".fixfix");
+        reading_file_name = fixfix.reading_file.replace(/^.*\/([^/]*)\.[^/.]+$/, '$1');
+        $('#fixfix-link').attr({
+          href: "dl/fixfix" + fixfix.reading_file,
+          download: "" + reading_file_name + ".fixfix"
+        });
         return $('#download').css('display', 'block');
       });
       fixfix.$svg.on('dirty', function(evt) {
@@ -870,6 +874,99 @@
       $('#scrap-changes-btn').click(function(evt) {
         load();
         return fixfix.$svg.trigger('clean');
+      });
+      jQuery_xhr_factory = $.ajaxSettings.xhr;
+      exts = ['xml', 'fixfix', 'tsv', 'bb'];
+      upload = function(files, $ul, dir) {
+        var $a, $li, ext, file, form, _, _i, _len, _ref1, _results;
+        _results = [];
+        for (_i = 0, _len = files.length; _i < _len; _i++) {
+          file = files[_i];
+          _ref1 = file.name.match(/\.([^./]+)$/), _ = _ref1[0], ext = _ref1[1];
+          if (exts.indexOf(ext) === -1) {
+            continue;
+          }
+          $a = $ul.find('a[rel$="/' + file.name + '"]');
+          if ($a.length) {
+            $li = $a.parent();
+          } else {
+            $a = $('<a href="#"/>').text(file.name).attr('rel', dir + file.name);
+            $li = $('<li class="file"/>').addClass('ext_' + ext).append($a);
+            $ul.append($li);
+          }
+          form = new FormData();
+          form.append(dir + file.name, file);
+          _results.push((function($li) {
+            return $.ajax({
+              url: 'upload',
+              data: form,
+              type: "POST",
+              contentType: false,
+              processData: false,
+              xhr: function() {
+                var req;
+                req = jQuery_xhr_factory();
+                req.upload.addEventListener("progress", this.progressUpload, false);
+                return req;
+              },
+              progressUpload: function(evt) {
+                var progress;
+                progress = Math.round(100 * evt.loaded / evt.total);
+                return $li.css('background', "linear-gradient(to right, rgba(255,255,255,0.30) 0%,rgba(0,0,255,0.30) " + progress + "%,rgba(0,0,0,0) " + progress + "%,rgba(0,0,0,0) 100%)");
+              },
+              success: function() {
+                return $li.css('background', '');
+              },
+              error: function() {
+                return $li.remove();
+              }
+            });
+          })($li));
+        }
+        return _results;
+      };
+      $('#browser').on('dragover', function(evt) {
+        evt.preventDefault();
+        return evt.stopPropagation();
+      });
+      $('#browser').on('dragenter', function(evt) {
+        evt.preventDefault();
+        return evt.stopPropagation();
+      });
+      $('#browser').on('drop', function(evt) {
+        var $target, $target_li, $ul, files, is_root, path, target_directory, target_file, _, _ref1, _ref2, _ref3;
+        if ((_ref1 = evt.originalEvent.dataTransfer) != null ? (_ref2 = _ref1.files) != null ? _ref2.length : void 0 : void 0) {
+          evt.preventDefault();
+          evt.stopPropagation();
+          is_root = evt.target.id === 'browser';
+          $target = $(evt.target);
+          if (!is_root) {
+            if ($target[0].tagName !== 'A') {
+              $target = $target.children('a');
+            }
+            $target_li = $target.parent();
+          }
+          path = is_root ? '/' : $target.attr('rel');
+          _ref3 = path.match(/^(.*\/)([^/]*)$/), _ = _ref3[0], target_directory = _ref3[1], target_file = _ref3[2];
+          window.$t = $target;
+          if (is_root) {
+            $ul = $target.children('ul');
+          } else if (target_file) {
+            $ul = $target.closest('ul');
+          } else if ($target_li.hasClass('expanded')) {
+            $ul = $target.next();
+          }
+          if ($ul) {
+            return upload(evt.originalEvent.dataTransfer.files, $ul, target_directory);
+          } else {
+            files = evt.originalEvent.dataTransfer.files;
+            $target_li.one('show', function(evt, $li) {
+              $ul = $li.children('ul');
+              return upload(files, $ul, target_directory);
+            });
+            return $target.click();
+          }
+        }
       });
       $(fixfix.svg._svg).contextMenu({
         selector: 'circle',
