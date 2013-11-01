@@ -763,7 +763,7 @@
 
   window.FixFixUI = (function() {
     function FixFixUI(fixfix, browser) {
-      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, nocache, set_opts, upload,
+      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_new_folder_input, nocache, set_opts, upload,
         _this = this;
       fixations = null;
       load_timer = null;
@@ -968,66 +968,168 @@
           }
         }
       });
+      make_new_folder_input = function($ul, path) {
+        var $input, $li;
+        $input = $('<input/>');
+        $li = $('<li class="directory collapsed"/>').append($input);
+        $ul.append($li);
+        $input.focus();
+        return $input.on('blur change', function(evt) {
+          var name, new_path;
+          if (!(name = $input.val())) {
+            $input.closest('li').remove();
+            return;
+          }
+          new_path = path + name + '/';
+          return $.ajax({
+            url: 'mkdir' + new_path,
+            type: 'POST',
+            success: function() {
+              var $a;
+              $input.remove();
+              $a = $('<a href="#"/>').text(name).attr('rel', new_path);
+              $li.append($a);
+              return $li.click();
+            },
+            error: function() {
+              return $input.closest('li').remove();
+            }
+          });
+        });
+      };
+      $('#browser').contextMenu({
+        selector: 'li',
+        animation: {
+          duration: 0
+        },
+        build: function($trigger, evt) {
+          var path;
+          path = $trigger.find('a').attr('rel');
+          return {
+            items: {
+              "delete": {
+                name: "Delete",
+                callback: function(key, options) {
+                  var type;
+                  type = path[path.length - 1] === '/' ? 'directory' : 'file';
+                  if (confirm("Are you sure you wish to the " + type + " " + path + "?")) {
+                    return $.ajax({
+                      url: 'delete' + path,
+                      type: "POST",
+                      success: function() {
+                        return $trigger.remove();
+                      }
+                    });
+                  }
+                }
+              },
+              folder: {
+                name: "New Folder",
+                callback: function(key, options) {
+                  var $ul, target_directory, target_file, _, _ref1;
+                  _ref1 = path.match(/^(.*\/)([^/]*)$/), _ = _ref1[0], target_directory = _ref1[1], target_file = _ref1[2];
+                  if (target_file) {
+                    $ul = $trigger.closest('ul');
+                  } else if ($trigger.hasClass('expanded')) {
+                    $ul = $trigger.find('ul');
+                  }
+                  if ($ul) {
+                    return make_new_folder_input($ul, target_directory);
+                  } else {
+                    console.log("EXPANDING");
+                    $trigger.one('show', function(evt, $li) {
+                      $ul = $li.children('ul');
+                      return make_new_folder_input($ul, target_directory);
+                    });
+                    return $trigger.find('a').click();
+                  }
+                }
+              }
+            }
+          };
+        }
+      });
+      $.contextMenu({
+        selector: '#browser',
+        animation: {
+          duration: 0
+        },
+        build: function($trigger, evt) {
+          var file;
+          file = $trigger.find('a').attr('rel');
+          return {
+            items: {
+              folder: {
+                name: "New Folder",
+                callback: function(key, options) {
+                  var $ul;
+                  $ul = $trigger.children('ul');
+                  return make_new_folder_input($ul, '/');
+                }
+              }
+            }
+          };
+        }
+      });
       $(fixfix.svg._svg).contextMenu({
         selector: 'circle',
         animation: {
           duration: 0
         },
         build: function($trigger, evt) {
-          var eye, from, index, items, sample, to, _ref1;
+          var eye, from, index, sample, to, _ref1;
           index = $trigger.data('index');
           eye = $trigger.data('eye');
           sample = fixfix.data.reading.samples[index];
           _ref1 = fixfix.data.reading.find_row(index), from = _ref1[0], to = _ref1[1];
-          items = {
-            header: {
-              name: "#" + index + " " + eye + " (" + sample.time + " ms)",
-              className: "header",
-              disabled: true
-            },
-            frozen: {
-              name: "Frozen",
-              disabled: index <= from || index >= to,
-              icon: sample.frozen ? "checkmark" : void 0,
-              callback: function(key, options) {
-                return sample.fix(!sample.frozen);
-              }
-            },
-            unfreeze_row: {
-              name: "Unfreeze Row",
-              callback: function(key, options) {
-                var _i, _ref2, _results;
-                _results = [];
-                for (index = _i = _ref2 = from + 1; _ref2 <= to ? _i < to : _i > to; index = _ref2 <= to ? ++_i : --_i) {
-                  _results.push(fixfix.data.reading.samples[index].fix(false));
+          return {
+            items: {
+              header: {
+                name: "#" + index + " " + eye + " (" + sample.time + " ms)",
+                className: "header",
+                disabled: true
+              },
+              frozen: {
+                name: "Frozen",
+                disabled: index <= from || index >= to,
+                icon: sample.frozen ? "checkmark" : void 0,
+                callback: function(key, options) {
+                  return sample.fix(!sample.frozen);
                 }
-                return _results;
-              }
-            },
-            separator1: "----------",
-            select_start: {
-              name: "Selection Start",
-              callback: function(key, options) {
-                fixfix.data.reading.selection.start = index;
-                return fixfix.data.reading.unhighlight();
-              }
-            },
-            select_end: {
-              name: "Selection End",
-              callback: function(key, options) {
-                fixfix.data.reading.selection.end = index;
-                return fixfix.data.reading.unhighlight();
-              }
-            },
-            scale_point: {
-              name: "Scale Point",
-              callback: function(key, options) {
-                return fixfix.scale_point = index;
+              },
+              unfreeze_row: {
+                name: "Unfreeze Row",
+                callback: function(key, options) {
+                  var _i, _ref2, _results;
+                  _results = [];
+                  for (index = _i = _ref2 = from + 1; _ref2 <= to ? _i < to : _i > to; index = _ref2 <= to ? ++_i : --_i) {
+                    _results.push(fixfix.data.reading.samples[index].fix(false));
+                  }
+                  return _results;
+                }
+              },
+              separator1: "----------",
+              select_start: {
+                name: "Selection Start",
+                callback: function(key, options) {
+                  fixfix.data.reading.selection.start = index;
+                  return fixfix.data.reading.unhighlight();
+                }
+              },
+              select_end: {
+                name: "Selection End",
+                callback: function(key, options) {
+                  fixfix.data.reading.selection.end = index;
+                  return fixfix.data.reading.unhighlight();
+                }
+              },
+              scale_point: {
+                name: "Scale Point",
+                callback: function(key, options) {
+                  return fixfix.scale_point = index;
+                }
               }
             }
-          };
-          return {
-            items: items
           };
         }
       });
@@ -1037,57 +1139,56 @@
           duration: 0
         },
         build: function($trigger, evt) {
-          var items, last_undo, move_present, _ref1, _ref2;
+          var last_undo, move_present, _ref1, _ref2;
           last_undo = fixfix.undo.peek();
           move_present = last_undo && (last_undo.constructor === MoveAction);
-          items = {
-            single: {
-              name: "Single mode",
-              icon: fixfix.single_mode ? "checkmark" : void 0,
-              callback: function(key, options) {
-                fixfix.single_mode = !fixfix.single_mode;
-                return true;
-              }
-            },
-            undo: {
-              name: "Undo",
-              disabled: fixfix.undo.empty(),
-              callback: function(key, options) {
-                var from, to, _ref1;
-                _ref1 = fixfix.undo.pop(), from = _ref1[0], to = _ref1[1];
-                fixfix.$svg.trigger('dirty');
-                return fixfix.data.reading.save(fixfix.reading_file, from, to);
-              }
-            },
-            mode_sep: "----------",
-            move: {
-              name: "Move",
-              disabled: !move_present,
-              callback: function(key, options) {
-                return fixfix.scale_selection(last_undo.index, null, true, true);
-              }
-            },
-            scale: {
-              name: "Scale",
-              disabled: !((fixfix.scale_point != null) && move_present && fixfix.scale_point !== last_undo.index),
-              callback: function(key, options) {
-                return fixfix.scale_selection(last_undo.index, fixfix.scale_point, true, true);
-              }
-            },
-            select_clear: {
-              name: "Selection Clear",
-              disabled: !(fixfix != null ? (_ref1 = fixfix.data) != null ? (_ref2 = _ref1.reading) != null ? _ref2.get_selection() : void 0 : void 0 : void 0),
-              callback: function(key, options) {
-                fixfix.data.reading.selection = {
-                  start: null,
-                  end: null
-                };
-                return fixfix.data.reading.unhighlight();
+          return {
+            items: {
+              single: {
+                name: "Single mode",
+                icon: fixfix.single_mode ? "checkmark" : void 0,
+                callback: function(key, options) {
+                  fixfix.single_mode = !fixfix.single_mode;
+                  return true;
+                }
+              },
+              undo: {
+                name: "Undo",
+                disabled: fixfix.undo.empty(),
+                callback: function(key, options) {
+                  var from, to, _ref1;
+                  _ref1 = fixfix.undo.pop(), from = _ref1[0], to = _ref1[1];
+                  fixfix.$svg.trigger('dirty');
+                  return fixfix.data.reading.save(fixfix.reading_file, from, to);
+                }
+              },
+              mode_sep: "----------",
+              move: {
+                name: "Move",
+                disabled: !move_present,
+                callback: function(key, options) {
+                  return fixfix.scale_selection(last_undo.index, null, true, true);
+                }
+              },
+              scale: {
+                name: "Scale",
+                disabled: !((fixfix.scale_point != null) && move_present && fixfix.scale_point !== last_undo.index),
+                callback: function(key, options) {
+                  return fixfix.scale_selection(last_undo.index, fixfix.scale_point, true, true);
+                }
+              },
+              select_clear: {
+                name: "Selection Clear",
+                disabled: !(fixfix != null ? (_ref1 = fixfix.data) != null ? (_ref2 = _ref1.reading) != null ? _ref2.get_selection() : void 0 : void 0 : void 0),
+                callback: function(key, options) {
+                  fixfix.data.reading.selection = {
+                    start: null,
+                    end: null
+                  };
+                  return fixfix.data.reading.unhighlight();
+                }
               }
             }
-          };
-          return {
-            items: items
           };
         }
       });

@@ -748,8 +748,79 @@ class window.FixFixUI
                     $target.click()
 
 
-        $(fixfix.svg._svg).contextMenu({
-            selector: 'circle',
+        # file browser context menu
+        make_new_folder_input = ($ul, path) ->
+            $input = $('<input/>')
+            $li = $('<li class="directory collapsed"/>').append($input)
+            $ul.append($li)
+            $input.focus()
+            $input
+                .on 'blur change', (evt) ->
+                    unless (name = $input.val())
+                        $input.closest('li').remove()
+                        return
+                    new_path = path + name + '/'
+                    $.ajax
+                        url: 'mkdir' + new_path
+                        type: 'POST'
+                        success: ->
+                            $input.remove()
+                            $a = $('<a href="#"/>').text(name).attr('rel', new_path)
+                            $li.append($a)
+                            $li.click()
+                        error: ->
+                            $input.closest('li').remove()
+        $('#browser').contextMenu
+            selector: 'li'
+            animation:
+                duration: 0
+            build: ($trigger, evt) ->
+                path = $trigger.find('a').attr('rel')
+                items:
+                    delete:
+                        name: "Delete"
+                        callback: (key, options) ->
+                            type = if path[path.length - 1] == '/' then 'directory' else 'file'
+                            if confirm("Are you sure you wish to the #{type} #{path}?")
+                                $.ajax
+                                    url: 'delete' + path
+                                    type: "POST"
+                                    success: ->
+                                        $trigger.remove()
+                    folder:
+                        name: "New Folder"
+                        callback: (key, options) ->
+                            [_, target_directory, target_file] = path.match /^(.*\/)([^/]*)$/
+                            if target_file
+                                $ul = $trigger.closest('ul')
+                            else if $trigger.hasClass('expanded')
+                                $ul = $trigger.find('ul')
+
+                            if $ul
+                                make_new_folder_input($ul, target_directory)
+                            else
+                                console.log("EXPANDING")
+                                $trigger.one 'show', (evt, $li) ->
+                                    $ul = $li.children('ul')
+                                    make_new_folder_input($ul, target_directory)
+                                $trigger.find('a').click()
+        $.contextMenu
+            selector: '#browser'
+            animation:
+                duration: 0
+            build: ($trigger, evt) ->
+                file = $trigger.find('a').attr('rel')
+                items:
+                    folder:
+                        name: "New Folder"
+                        callback: (key, options) ->
+                            $ul = $trigger.children('ul')
+                            make_new_folder_input($ul, '/')
+
+
+        # circle context menu
+        $(fixfix.svg._svg).contextMenu
+            selector: 'circle'
             animation:
                 duration: 0
             build: ($trigger, evt) ->
@@ -758,7 +829,7 @@ class window.FixFixUI
                 sample = fixfix.data.reading.samples[index]
                 [from, to] = fixfix.data.reading.find_row(index)
 
-                items =
+                items:
                     header:
                         name: "##{index} #{eye} (#{sample.time} ms)"
                         className: "header"
@@ -790,20 +861,15 @@ class window.FixFixUI
                         callback: (key, options) ->
                             fixfix.scale_point = index
 
-                return {
-                    items: items
-                }
-        })
-
-
-        $.contextMenu({
+        # blank space context menu
+        $.contextMenu
             selector: 'svg'
             animation:
                 duration: 0
             build: ($trigger, evt) ->
                 last_undo = fixfix.undo.peek()
                 move_present = last_undo and (last_undo.constructor is MoveAction)
-                items =
+                items:
                     single:
                         name: "Single mode"
                         icon: if fixfix.single_mode then "checkmark" else undefined
@@ -836,12 +902,6 @@ class window.FixFixUI
                                 start: null
                                 end: null
                             fixfix.data.reading.unhighlight()
-
-
-                return {
-                    items: items
-                }
-        })
 
 
         set_opts()
