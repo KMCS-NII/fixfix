@@ -1,8 +1,8 @@
 require 'sinatra/base'
 require 'sinatra/url_for'
 require 'json'
-require 'zlib'
 require 'time'
+require 'fileutils'
 
 
 def ensure_sandboxed(file, dir)
@@ -140,6 +140,18 @@ module Routes
       end
 
       ""
+    end
+
+    app.post '/delete/*' do
+      file = File.join('data', params[:splat])
+      ensure_sandboxed(file, 'data')
+      FileUtils.rm_rf(file)
+    end
+
+    app.post '/mkdir/*' do
+      file = File.join('data', params[:splat])
+      ensure_sandboxed(file, 'data')
+      FileUtils.mkdir_p(file)
     end
   end
 end
