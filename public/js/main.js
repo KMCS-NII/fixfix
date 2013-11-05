@@ -1,5 +1,5 @@
 (function() {
-  var EditAction, Gaze, MoveAction, Reading, Sample, ScaleAction, UndoStack, Word, event_point, move_point, set_CTM, treedraw, _ref,
+  var EditAction, Gaze, MoveAction, Reading, Sample, ScaleAction, Selection, UndoStack, Word, event_point, move_point, set_CTM, treedraw, _ref,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
@@ -164,6 +164,84 @@
 
   })();
 
+  Selection = (function() {
+    function Selection(reading, jump) {
+      this.reading = reading;
+      this.jump = jump != null ? jump : 500;
+      this.clear();
+    }
+
+    Selection.prototype.clear = function() {
+      this.start = null;
+      this.end = null;
+      this.span = null;
+      return this.offset = null;
+    };
+
+    Selection.prototype.set_start = function(start) {
+      this.start = start;
+      return this.update_span();
+    };
+
+    Selection.prototype.set_end = function(end) {
+      this.end = end;
+      return this.update_span();
+    };
+
+    Selection.prototype.get_start = function() {
+      return this.start || 0;
+    };
+
+    Selection.prototype.get_end = function() {
+      if (this.end != null) {
+        return this.end;
+      } else {
+        return this.reading.samples.length - 1;
+      }
+    };
+
+    Selection.prototype.valid = function() {
+      return (this.start != null) || (this.end != null);
+    };
+
+    Selection.prototype.update_span = function() {
+      var end_time;
+      if (this.valid()) {
+        this.offset = this.reading.samples[this.get_start()].time;
+        end_time = this.reading.samples[this.get_end()].time;
+        return this.span = end_time - this.offset;
+      }
+    };
+
+    Selection.prototype.find_closest_sample = function(index, offset, direction) {
+      var cur_sample, prev_sample, _ref;
+      cur_sample = this.reading.samples[index];
+      while ((prev_sample = cur_sample, cur_sample = this.reading.samples[index + direction]) && !((prev_sample.time * direction <= (_ref = offset * direction) && _ref < cur_sample.time * direction))) {
+        index += direction;
+      }
+      if (cur_sample && (offset - prev_sample.time) * direction > (cur_sample.time - offset) * direction) {
+        index += direction;
+      }
+      return index;
+    };
+
+    Selection.prototype.next = function(direction) {
+      if (direction == null) {
+        direction = 1;
+      }
+      if (!this.valid()) {
+        return;
+      }
+      this.offset += this.jump * direction;
+      this.start = this.find_closest_sample(this.get_start(), this.offset, direction);
+      this.end = this.find_closest_sample(this.get_end(), this.offset + this.span, direction);
+      return this.reading.unhighlight();
+    };
+
+    return Selection;
+
+  })();
+
   Reading = (function() {
     function Reading(samples, flags, row_bounds) {
       var from, to, _i, _len, _ref, _ref1;
@@ -176,10 +254,7 @@
         this.samples[from].frozen = true;
         this.samples[to].frozen = true;
       }
-      this.selection = {
-        start: null,
-        end: null
-      };
+      this.selection = new Selection(this);
     }
 
     Reading.prototype.find_row = function(index) {
@@ -243,24 +318,11 @@
       return this.toggle_class_on_range(from, to, 'highlight', true);
     };
 
-    Reading.prototype.get_selection = function(force) {
-      var to;
-      if (this.selection.start || this.selection.end || force) {
-        return {
-          start: this.selection.start || 0,
-          end: to = this.selection.end || (this.samples.length - 1)
-        };
-      } else {
-        return null;
-      }
-    };
-
     Reading.prototype.unhighlight = function() {
-      var selection;
-      $('.highlight').removeClass('highlight');
-      if ((selection = this.get_selection())) {
+      $(document.querySelectorAll('.highlight')).removeClass('highlight');
+      if (this.selection.valid != null) {
         $('#reading').addClass('faint');
-        return this.highlight_range(selection.start, selection.end);
+        return this.highlight_range(this.selection.get_start(), this.selection.get_end());
       } else {
         return $('#reading').removeClass('faint');
       }
@@ -575,8 +637,9 @@
     };
 
     FixFix.prototype.scale_selection = function(moved_index, scale_index, affect_x, affect_y) {
-      var delta_center_x, delta_center_y, delta_left_x, delta_left_y, delta_right_x, delta_right_y, eye, index, last_sample, last_undo, move_info, moved_sample, sample, scale_delta, scale_sample, selection, _i, _j, _k, _len, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
-      selection = this.data.reading.get_selection(true);
+      var delta_center_x, delta_center_y, delta_left_x, delta_left_y, delta_right_x, delta_right_y, eye, index, last_sample, last_undo, move_info, moved_sample, sample, scale_delta, scale_sample, selection_end, selection_start, _i, _j, _k, _len, _ref1, _ref2, _ref3;
+      selection_start = this.data.reading.selection.get_start();
+      selection_end = this.data.reading.selection.get_end();
       last_undo = this.undo.peek();
       moved_sample = this.data.reading.samples[last_undo.index];
       move_info = last_undo.records[last_undo.index - last_undo.from];
@@ -587,14 +650,14 @@
       delta_right_x = move_info[4] - moved_sample.right.x;
       delta_right_y = move_info[5] - moved_sample.right.y;
       this.undo.pop();
-      this.undo.push(new ScaleAction(this.data, selection.start, selection.end, moved_index));
+      this.undo.push(new ScaleAction(this.data, selection_start, selection_end, moved_index));
       scale_sample = scale_index != null ? this.data.reading.samples[scale_index] : null;
       scale_delta = function(orig_value, moved_orig_value, scale_point_orig_value, delta_at_moved_point) {
         var scale_factor;
         scale_factor = scale_point_orig_value ? (orig_value - scale_point_orig_value) / (moved_orig_value - scale_point_orig_value) : 1;
         return delta_at_moved_point * scale_factor;
       };
-      for (index = _i = _ref1 = selection.start, _ref2 = selection.end; _ref1 <= _ref2 ? _i <= _ref2 : _i >= _ref2; index = _ref1 <= _ref2 ? ++_i : --_i) {
+      for (index = _i = selection_start; selection_start <= selection_end ? _i <= selection_end : _i >= selection_end; index = selection_start <= selection_end ? ++_i : --_i) {
         sample = this.data.reading.samples[index];
         if (affect_x) {
           sample.left.x -= scale_delta(sample.left.x, moved_sample.left.x, scale_sample && scale_sample.left.x, delta_left_x);
@@ -607,13 +670,13 @@
           sample.right.y -= scale_delta(sample.right.y, moved_sample.right.y, scale_sample && scale_sample.right.y, delta_right_y);
         }
       }
-      last_sample = this.data.reading.samples[selection.start - 1];
-      for (index = _j = _ref3 = selection.start, _ref4 = selection.end; _ref3 <= _ref4 ? _j <= _ref4 : _j >= _ref4; index = _ref3 <= _ref4 ? ++_j : --_j) {
+      last_sample = this.data.reading.samples[selection_start - 1];
+      for (index = _j = selection_start; selection_start <= selection_end ? _j <= selection_end : _j >= selection_end; index = selection_start <= selection_end ? ++_j : --_j) {
         sample = this.data.reading.samples[index];
-        _ref5 = ['left', 'center', 'right'];
-        for (_k = 0, _len = _ref5.length; _k < _len; _k++) {
-          eye = _ref5[_k];
-          if ((_ref6 = sample[eye]) != null ? _ref6.el : void 0) {
+        _ref1 = ['left', 'center', 'right'];
+        for (_k = 0, _len = _ref1.length; _k < _len; _k++) {
+          eye = _ref1[_k];
+          if ((_ref2 = sample[eye]) != null ? _ref2.el : void 0) {
             sample[eye].el.setAttribute('cx', sample[eye].x);
             sample[eye].el.setAttribute('cy', sample[eye].y);
           }
@@ -621,7 +684,7 @@
             sample[eye].sel.setAttribute('x1', sample[eye].x);
             sample[eye].sel.setAttribute('y1', sample[eye].y);
           }
-          if (last_sample && ((_ref7 = last_sample[eye]) != null ? _ref7.sel : void 0)) {
+          if (last_sample && ((_ref3 = last_sample[eye]) != null ? _ref3.sel : void 0)) {
             last_sample[eye].sel.setAttribute('x2', sample[eye].x);
             last_sample[eye].sel.setAttribute('y2', sample[eye].y);
           }
@@ -635,7 +698,7 @@
         last_sample = sample;
       }
       this.$svg.trigger('dirty');
-      this.data.reading.save(this.reading_file, selection.start, selection.end);
+      this.data.reading.save(this.reading_file, selection_start, selection_end);
       return this.scale_point = moved_index;
     };
 
@@ -685,6 +748,7 @@
                 sample.index = index;
               }
               _this.render_reading();
+              _this.data.reading.unhighlight();
               _this.undo = new UndoStack();
               _results.push(_this.$svg.trigger('loaded'));
               break;
@@ -763,7 +827,7 @@
 
   window.FixFixUI = (function() {
     function FixFixUI(fixfix, browser) {
-      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_new_folder_input, nocache, set_opts, upload,
+      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_new_folder_input, nocache, set_opts, stop, upload,
         _this = this;
       fixations = null;
       load_timer = null;
@@ -926,18 +990,14 @@
         return _results;
       };
       $('#browser').on('dragover', function(evt) {
-        evt.preventDefault();
-        return evt.stopPropagation();
+        return stop(evt);
       });
       $('#browser').on('dragenter', function(evt) {
-        evt.preventDefault();
-        return evt.stopPropagation();
+        return stop(evt);
       });
       $('#browser').on('drop', function(evt) {
         var $target, $target_li, $ul, files, is_root, path, target_directory, target_file, _, _ref1, _ref2, _ref3;
         if ((_ref1 = evt.originalEvent.dataTransfer) != null ? (_ref2 = _ref1.files) != null ? _ref2.length : void 0 : void 0) {
-          evt.preventDefault();
-          evt.stopPropagation();
           is_root = evt.target.id === 'browser';
           $target = $(evt.target);
           if (!is_root) {
@@ -957,15 +1017,16 @@
             $ul = $target.next();
           }
           if ($ul) {
-            return upload(evt.originalEvent.dataTransfer.files, $ul, target_directory);
+            upload(evt.originalEvent.dataTransfer.files, $ul, target_directory);
           } else {
             files = evt.originalEvent.dataTransfer.files;
             $target_li.one('show', function(evt, $li) {
               $ul = $li.children('ul');
               return upload(files, $ul, target_directory);
             });
-            return $target.click();
+            $target.click();
           }
+          return stop(evt);
         }
       });
       make_new_folder_input = function($ul, path) {
@@ -1112,14 +1173,14 @@
               select_start: {
                 name: "Selection Start",
                 callback: function(key, options) {
-                  fixfix.data.reading.selection.start = index;
+                  fixfix.data.reading.selection.set_start(index);
                   return fixfix.data.reading.unhighlight();
                 }
               },
               select_end: {
                 name: "Selection End",
                 callback: function(key, options) {
-                  fixfix.data.reading.selection.end = index;
+                  fixfix.data.reading.selection.set_end(index);
                   return fixfix.data.reading.unhighlight();
                 }
               },
@@ -1139,7 +1200,7 @@
           duration: 0
         },
         build: function($trigger, evt) {
-          var last_undo, move_present, _ref1, _ref2;
+          var last_undo, move_present, _ref1, _ref2, _ref3;
           last_undo = fixfix.undo.peek();
           move_present = last_undo && (last_undo.constructor === MoveAction);
           return {
@@ -1179,12 +1240,9 @@
               },
               select_clear: {
                 name: "Selection Clear",
-                disabled: !(fixfix != null ? (_ref1 = fixfix.data) != null ? (_ref2 = _ref1.reading) != null ? _ref2.get_selection() : void 0 : void 0 : void 0),
+                disabled: !(fixfix != null ? (_ref1 = fixfix.data) != null ? (_ref2 = _ref1.reading) != null ? (_ref3 = _ref2.selection) != null ? _ref3.valid() : void 0 : void 0 : void 0 : void 0),
                 callback: function(key, options) {
-                  fixfix.data.reading.selection = {
-                    start: null,
-                    end: null
-                  };
+                  fixfix.data.reading.selection.clear();
                   return fixfix.data.reading.unhighlight();
                 }
               }
@@ -1192,6 +1250,29 @@
           };
         }
       });
+      $(document).keydown(function(evt) {
+        var $target;
+        if (fixfix.reading_file == null) {
+          return;
+        }
+        $target = $(evt.target);
+        if ($target.is('input')) {
+          return true;
+        }
+        switch (evt.keyCode) {
+          case 37:
+            fixfix.data.reading.selection.next(-1);
+            return stop(evt);
+          case 39:
+            fixfix.data.reading.selection.next(+1);
+            return stop(evt);
+        }
+      });
+      stop = function(evt) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        return false;
+      };
       set_opts();
     }
 
