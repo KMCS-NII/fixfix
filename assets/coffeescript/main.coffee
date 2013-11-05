@@ -65,9 +65,7 @@ class Sample
         if @left.x? and @left.y? and @right.x? and @right.y?
             @center = new Gaze(
                 (@left.x + @right.x) / 2,
-                (@left.y + @right.y) / 2,
-                (@left.pupil + @right.pupil) / 2,
-                if @left.validity > @right.validity then @left.validity else @right.validity
+                (@left.y + @right.y) / 2, (@left.pupil + @right.pupil) / 2, if @left.validity > @right.validity then @left.validity else @right.validity
             )
 
     render: (svg, parent, eye) ->
@@ -108,14 +106,58 @@ class Sample
         circles.toggleClass('frozen', value)
 
 
+class Selection
+    constructor: (@reading, @jump=500) -> # half a second default jump
+        @clear()
+
+    clear: ->
+        @start = null
+        @end = null
+        @span = null
+        @offset = null
+        # @start = 20
+        # @end = 40
+        # @span = @reading.samples[@end].time - @reading.samples[@start].time
+        # @offset = @reading.samples[@start].time
+
+    set_start: (start) ->
+        @start = start
+        @update_span()
+    set_end: (end) ->
+        @end = end
+        @update_span()
+    get_start: -> @start || 0
+    get_end: -> if @end? then @end else @reading.samples.length - 1
+    valid: ->
+        return @start? or @end?
+    update_span: ->
+        if @valid()
+            @offset = @reading.samples[@get_start()].time
+            end_time = @reading.samples[@get_end()].time
+            @span = end_time - @offset
+
+    find_closest_sample: (index, offset, direction) ->
+        cur_sample = @reading.samples[index]
+        # find the sandwiching samples
+        index += direction while (prev_sample = cur_sample; cur_sample = @reading.samples[index + direction]) and !(prev_sample.time * direction <= offset * direction < cur_sample.time * direction)
+        # choose the closer one
+        if cur_sample and (offset - prev_sample.time) * direction > (cur_sample.time - offset) * direction
+            index += direction
+        index
+    next: (direction=1) ->
+        return unless @valid()
+        @offset += @jump * direction
+        @start = @find_closest_sample(@get_start(), @offset, direction)
+        @end = @find_closest_sample(@get_end(), @offset + @span, direction)
+        @reading.unhighlight()
+
+
 class Reading
     constructor: (@samples, @flags, @row_bounds) ->
         for [from, to] in @row_bounds
             @samples[from].frozen = true
             @samples[to].frozen = true
-        @selection =
-            start: null
-            end: null
+        @selection = new Selection(this)
 
     find_row: (index) ->
         for [from, to] in @row_bounds
@@ -158,20 +200,18 @@ class Reading
         $('#reading').addClass('faint')
         @toggle_class_on_range(from, to, 'highlight', true)
 
-    get_selection: (force) ->
-        if @selection.start or @selection.end or force
-            return {
-                start: @selection.start || 0
-                end: to = @selection.end || (@samples.length - 1)
-            }
-        else
-            return null
-
     unhighlight: ->
-        $('.highlight').removeClass('highlight')
-        if (selection = @get_selection())
+        # changed because it breaks down:
+        # Chrome/Mac Version 30.0.1599.101
+        # (after several quick iterations, starts leaving some elements
+        # untouched, and the jQuery selector returns `undefined`s in the
+        # array
+        # However, works in Firefox/Mac 23.0.1
+        # $('.highlight').removeClass('highlight')
+        $(document.querySelectorAll('.highlight')).removeClass('highlight')
+        if @selection.valid?
             $('#reading').addClass('faint')
-            @highlight_range(selection.start, selection.end)
+            @highlight_range(@selection.get_start(), @selection.get_end())
         else
             $('#reading').removeClass('faint')
 
@@ -437,7 +477,8 @@ class window.FixFix
                 stop_drag()
 
     scale_selection: (moved_index, scale_index, affect_x, affect_y) ->
-        selection = @data.reading.get_selection(true)
+        selection_start = @data.reading.selection.get_start()
+        selection_end = @data.reading.selection.get_end()
         last_undo = @undo.peek()
 
         moved_sample = @data.reading.samples[last_undo.index]
@@ -451,7 +492,7 @@ class window.FixFix
         delta_right_y = move_info[5] - moved_sample.right.y
 
         @undo.pop()
-        @undo.push(new ScaleAction(@data, selection.start, selection.end, moved_index))
+        @undo.push(new ScaleAction(@data, selection_start, selection_end, moved_index))
         scale_sample = if scale_index? then @data.reading.samples[scale_index] else null
 
         scale_delta = (orig_value, moved_orig_value, scale_point_orig_value, delta_at_moved_point) ->
@@ -462,7 +503,7 @@ class window.FixFix
                     1
             delta_at_moved_point * scale_factor
 
-        for index in [selection.start .. selection.end]
+        for index in [selection_start .. selection_end]
             sample = @data.reading.samples[index]
             if affect_x
                 sample.left.x -= scale_delta(sample.left.x, moved_sample.left.x, scale_sample and scale_sample.left.x, delta_left_x)
@@ -473,8 +514,8 @@ class window.FixFix
                 sample.center.y -= scale_delta(sample.center.y, moved_sample.center.y, scale_sample and scale_sample.center.y, delta_center_y)
                 sample.right.y -= scale_delta(sample.right.y, moved_sample.right.y, scale_sample and scale_sample.right.y, delta_right_y)
 
-        last_sample = @data.reading.samples[selection.start - 1]
-        for index in [selection.start .. selection.end]
+        last_sample = @data.reading.samples[selection_start - 1]
+        for index in [selection_start .. selection_end]
             sample = @data.reading.samples[index]
             for eye in ['left', 'center', 'right']
                 if sample[eye]?.el
@@ -494,7 +535,7 @@ class window.FixFix
             last_sample = sample
 
         @$svg.trigger('dirty')
-        @data.reading.save(@reading_file, selection.start, selection.end)
+        @data.reading.save(@reading_file, selection_start, selection_end)
         @scale_point = moved_index
 
     load: (file) ->
@@ -528,6 +569,7 @@ class window.FixFix
                         for sample, index in @data.reading.samples
                             sample.index = index
                         @render_reading()
+                        @data.reading.unhighlight()
                         @undo = new UndoStack()
                         @$svg.trigger('loaded')
 
@@ -710,15 +752,11 @@ class window.FixFixUI
 
                 
         $('#browser').on 'dragover', (evt) ->
-            evt.preventDefault()
-            evt.stopPropagation()
+            stop(evt)
         $('#browser').on 'dragenter', (evt) ->
-            evt.preventDefault()
-            evt.stopPropagation()
+            stop(evt)
         $('#browser').on 'drop', (evt) ->
             if evt.originalEvent.dataTransfer?.files?.length
-                evt.preventDefault()
-                evt.stopPropagation()
                 # find out the directory
                 is_root = evt.target.id == 'browser'
                 $target = $(evt.target)
@@ -746,6 +784,7 @@ class window.FixFixUI
                         $ul = $li.children('ul')
                         upload(files, $ul, target_directory)
                     $target.click()
+                stop(evt)
 
 
         # file browser context menu
@@ -849,12 +888,12 @@ class window.FixFixUI
                     select_start:
                         name: "Selection Start"
                         callback: (key, options) ->
-                            fixfix.data.reading.selection.start = index
+                            fixfix.data.reading.selection.set_start(index)
                             fixfix.data.reading.unhighlight()
                     select_end:
                         name: "Selection End"
                         callback: (key, options) ->
-                            fixfix.data.reading.selection.end = index
+                            fixfix.data.reading.selection.set_end(index)
                             fixfix.data.reading.unhighlight()
                     scale_point:
                         name: "Scale Point"
@@ -896,12 +935,28 @@ class window.FixFixUI
                             fixfix.scale_selection(last_undo.index, fixfix.scale_point, true, true)
                     select_clear:
                         name: "Selection Clear"
-                        disabled: !fixfix?.data?.reading?.get_selection()
+                        disabled: !fixfix?.data?.reading?.selection?.valid()
                         callback: (key, options) ->
-                            fixfix.data.reading.selection =
-                                start: null
-                                end: null
+                            fixfix.data.reading.selection.clear()
                             fixfix.data.reading.unhighlight()
 
+        $(document).keydown (evt) ->
+            return unless fixfix.reading_file?
+            $target = $(evt.target)
+            # ignore input elements
+            return true if $target.is('input')
+            switch evt.keyCode
+                when 37 # left
+                    fixfix.data.reading.selection.next(-1)
+                    stop(evt)
+                when 39 # right
+                    fixfix.data.reading.selection.next(+1)
+                    stop(evt)
+
+
+        stop = (evt) ->
+            evt.preventDefault()
+            evt.stopPropagation()
+            false
 
         set_opts()

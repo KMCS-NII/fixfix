@@ -134,9 +134,7 @@ module Routes
       end
 
       params.each do |name, file|
-        File.open('data' + name, 'w') do |f|
-          f.write(file[:tempfile].read)
-        end
+        FileUtils.mv(file[:tempfile], 'data' + name)
       end
 
       ""
