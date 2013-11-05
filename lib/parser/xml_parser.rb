@@ -7,7 +7,7 @@ class XMLParser
 
   def doc_and_words
     @doc = File.open(@file) { |f| Nokogiri::XML(f.read) }
-    @words = @doc.css('FinalTextChar > CharPos').map { |char|
+    @words = @doc.css('SourceTextChar > CharPos, FinalTextChar > CharPos').map { |char|
       x = char[:X].to_i
       y = char[:Y].to_i
       w = char[:Width].to_i
