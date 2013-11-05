@@ -820,7 +820,7 @@ class window.FixFixUI
                         name: "Delete"
                         callback: (key, options) ->
                             type = if path[path.length - 1] == '/' then 'directory' else 'file'
-                            if confirm("Are you sure you wish to the #{type} #{path}?")
+                            if confirm("Are you sure you wish to delete the #{type} #{path}?")
                                 $.ajax
                                     url: 'delete' + path
                                     type: "POST"
