@@ -107,7 +107,7 @@ class Sample
 
 
 class Selection
-    constructor: (@reading, @jump=500) -> # half a second default jump
+    constructor: (@reading) -> # half a second default jump
         @clear()
 
     clear: ->
@@ -144,9 +144,9 @@ class Selection
         if cur_sample and (offset - prev_sample.time) * direction > (cur_sample.time - offset) * direction
             index += direction
         index
-    next: (direction=1) ->
+    next: (direction, jump) ->
         return unless @valid()
-        @offset += @jump * direction
+        @offset += jump * direction
         @start = @find_closest_sample(@get_start(), @offset, direction)
         @end = @find_closest_sample(@get_end(), @offset + @span, direction)
         @reading.unhighlight()
@@ -613,6 +613,7 @@ class window.FixFixUI
         fixations = null
         load_timer = null
         nocache = false
+        selection_jump = 500 # default: half a second
 
         set_opts = ->
             fixations = $('#i-dt').is(':checked')
@@ -939,6 +940,29 @@ class window.FixFixUI
                         callback: (key, options) ->
                             fixfix.data.reading.selection.clear()
                             fixfix.data.reading.unhighlight()
+                    select_speed:
+                        name: "Jump Speed"
+                        items:
+                            selspeed_100ms:
+                                name: "100 ms"
+                                icon: if selection_jump == 100 then "checkmark" else undefined
+                                callback: (key, options) ->
+                                    selection_jump = 100
+                            selspeed_200ms:
+                                name: "200 ms"
+                                icon: if selection_jump == 200 then "checkmark" else undefined
+                                callback: (key, options) ->
+                                    selection_jump = 200
+                            selspeed_500ms:
+                                name: "500 ms"
+                                icon: if selection_jump == 500 then "checkmark" else undefined
+                                callback: (key, options) ->
+                                    selection_jump = 500
+                            selspeed_1000ms:
+                                name: "1000 ms"
+                                icon: if selection_jump == 1000 then "checkmark" else undefined
+                                callback: (key, options) ->
+                                    selection_jump = 1000
 
         $(document).keydown (evt) ->
             return unless fixfix.reading_file?
@@ -947,10 +971,10 @@ class window.FixFixUI
             return true if $target.is('input')
             switch evt.keyCode
                 when 37 # left
-                    fixfix.data.reading.selection.next(-1)
+                    fixfix.data.reading.selection.next(-1, selection_jump)
                     stop(evt)
                 when 39 # right
-                    fixfix.data.reading.selection.next(+1)
+                    fixfix.data.reading.selection.next(+1, selection_jump)
                     stop(evt)
 
 
