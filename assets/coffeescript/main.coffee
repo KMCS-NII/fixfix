@@ -139,7 +139,9 @@ class Selection
     find_closest_sample: (index, offset, direction) ->
         cur_sample = @reading.samples[index]
         # find the sandwiching samples
-        index += direction while (prev_sample = cur_sample; cur_sample = @reading.samples[index + direction]) and !(prev_sample.time * direction <= offset * direction < cur_sample.time * direction)
+        while (prev_sample = cur_sample; cur_sample = @reading.samples[index + direction]) and
+                !(offset * direction < cur_sample.time * direction)
+            index += direction
         # choose the closer one
         if cur_sample and (offset - prev_sample.time) * direction > (cur_sample.time - offset) * direction
             index += direction
