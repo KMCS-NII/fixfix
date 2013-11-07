@@ -213,9 +213,9 @@
     };
 
     Selection.prototype.find_closest_sample = function(index, offset, direction) {
-      var cur_sample, prev_sample, _ref;
+      var cur_sample, prev_sample;
       cur_sample = this.reading.samples[index];
-      while ((prev_sample = cur_sample, cur_sample = this.reading.samples[index + direction]) && !((prev_sample.time * direction <= (_ref = offset * direction) && _ref < cur_sample.time * direction))) {
+      while ((prev_sample = cur_sample, cur_sample = this.reading.samples[index + direction]) && !(offset * direction < cur_sample.time * direction)) {
         index += direction;
       }
       if (cur_sample && (offset - prev_sample.time) * direction > (cur_sample.time - offset) * direction) {
