@@ -209,7 +209,7 @@ class Reading
         # However, works in Firefox/Mac 23.0.1
         # $('.highlight').removeClass('highlight')
         $(document.querySelectorAll('.highlight')).removeClass('highlight')
-        if @selection.valid?
+        if @selection.valid()
             $('#reading').addClass('faint')
             @highlight_range(@selection.get_start(), @selection.get_end())
         else
@@ -310,6 +310,10 @@ class window.FixFix
         $(@$svg).svg(onLoad: @init)
         @undo = new UndoStack()
         @mode = null
+        @eyes =
+            left: true
+            center: true
+            right: true
 
 
     init: (@svg) =>
@@ -568,7 +572,7 @@ class window.FixFix
                                 sample.build_center()
                         for sample, index in @data.reading.samples
                             sample.index = index
-                        @render_reading()
+                        @render_reading(@eyes)
                         @data.reading.unhighlight()
                         @undo = new UndoStack()
                         @$svg.trigger('loaded')
@@ -583,7 +587,7 @@ class window.FixFix
         for word in @data.bb
             word.render_word(@svg, text_group)
 
-    render_reading: ->
+    render_reading: () ->
         $(@reading_group).empty()
         tree_factor = 20
 
@@ -594,8 +598,8 @@ class window.FixFix
                 sample = samples[index]
                 if sample?
                     sample.render_intereye(@svg, parent)
-        for eye of @data.reading.opts.eyes
-            if @data.reading.opts.eyes[eye]
+        for eye of @eyes
+            if @eyes[eye]
                 if @data.reading.flags.lines
                     treedraw @svg, @svg.group(@reading_group), samples.length - 1, tree_factor, (parent, index) =>
                         sample1 = samples[index]
@@ -636,12 +640,11 @@ class window.FixFixUI
             else
                 delete opts.nocache
 
-            opts.eyes =
+            fixfix.opts = opts
+            fixfix.eyes =
                 left: $('#left-eye').is(':checked')
                 center: $('#center-eye').is(':checked')
                 right: $('#right-eye').is(':checked')
-
-            fixfix.opts = opts
 
         $(browser).fileTree {
                 script: 'files'
@@ -839,7 +842,6 @@ class window.FixFixUI
                             if $ul
                                 make_new_folder_input($ul, target_directory)
                             else
-                                console.log("EXPANDING")
                                 $trigger.one 'show', (evt, $li) ->
                                     $ul = $li.children('ul')
                                     make_new_folder_input($ul, target_directory)
