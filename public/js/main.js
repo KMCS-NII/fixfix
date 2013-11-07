@@ -828,7 +828,7 @@
 
   window.FixFixUI = (function() {
     function FixFixUI(fixfix, browser) {
-      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_new_folder_input, nocache, selection_jump, set_opts, stop, upload,
+      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_checkbox, make_new_folder_input, nocache, selection_jump, set_opts, stop, upload,
         _this = this;
       fixations = null;
       load_timer = null;
@@ -1151,14 +1151,15 @@
                 className: "header",
                 disabled: true
               },
-              frozen: {
+              frozen: make_checkbox({
                 name: "Frozen",
                 disabled: index <= from || index >= to,
-                icon: sample.frozen ? "checkmark" : void 0,
-                callback: function(key, options) {
-                  return sample.fix(!sample.frozen);
+                selected: sample.frozen,
+                click: function(evt) {
+                  sample.fix(!sample.frozen);
+                  return click;
                 }
-              },
+              }),
               unfreeze_row: {
                 name: "Unfreeze Row",
                 callback: function(key, options) {
@@ -1206,14 +1207,14 @@
           move_present = last_undo && (last_undo.constructor === MoveAction);
           return {
             items: {
-              single: {
+              single: make_checkbox({
                 name: "Single mode",
-                icon: fixfix.single_mode ? "checkmark" : void 0,
-                callback: function(key, options) {
+                selected: fixfix.single_mode,
+                click: function(evt) {
                   fixfix.single_mode = !fixfix.single_mode;
                   return true;
                 }
-              },
+              }),
               undo: {
                 name: "Undo",
                 disabled: fixfix.undo.empty(),
@@ -1250,34 +1251,34 @@
               select_speed: {
                 name: "Jump Speed",
                 items: {
-                  selspeed_100ms: {
+                  selspeed_100ms: make_checkbox({
                     name: "100 ms",
-                    icon: selection_jump === 100 ? "checkmark" : void 0,
-                    callback: function(key, options) {
+                    selected: selection_jump === 100,
+                    click: function(evt) {
                       return selection_jump = 100;
                     }
-                  },
-                  selspeed_200ms: {
+                  }),
+                  selspeed_200ms: make_checkbox({
                     name: "200 ms",
-                    icon: selection_jump === 200 ? "checkmark" : void 0,
-                    callback: function(key, options) {
+                    selected: selection_jump === 200,
+                    click: function(evt) {
                       return selection_jump = 200;
                     }
-                  },
-                  selspeed_500ms: {
+                  }),
+                  selspeed_500ms: make_checkbox({
                     name: "500 ms",
-                    icon: selection_jump === 500 ? "checkmark" : void 0,
-                    callback: function(key, options) {
+                    selected: selection_jump === 500,
+                    click: function(evt) {
                       return selection_jump = 500;
                     }
-                  },
-                  selspeed_1000ms: {
+                  }),
+                  selspeed_1000ms: make_checkbox({
                     name: "1000 ms",
-                    icon: selection_jump === 1000 ? "checkmark" : void 0,
-                    callback: function(key, options) {
+                    selected: selection_jump === 1000,
+                    click: function(evt) {
                       return selection_jump = 1000;
                     }
-                  }
+                  })
                 }
               }
             }
@@ -1306,6 +1307,18 @@
         evt.preventDefault();
         evt.stopPropagation();
         return false;
+      };
+      make_checkbox = function(args) {
+        var click_handler;
+        args['type'] = 'checkbox';
+        args['events'] || (args['events'] = {});
+        click_handler = args['click'];
+        delete args['click'];
+        args['events']['click'] = function(evt) {
+          $(this).closest('.context-menu-root').contextMenu('hide');
+          return click_handler();
+        };
+        return args;
       };
       set_opts();
     }

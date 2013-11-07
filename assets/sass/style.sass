@@ -123,11 +123,24 @@ html, body
 
 
 .context-menu-item
-  cursor: default
+  &.context-menu-input.hover
+    // undo the weird styling from contextMenu style
+    &, & label
+      cursor: pointer
+      background-color: #39F
+  input[type="checkbox"]
+    margin-top: 0
+    margin-bottom: 0
+    margin-right: 0
+    -moz-appearance: none
+    -webkit-appearance: none
+    -o-appearance: none
+    appearance: none
+    width: 12
+    &:checked:before
+      content: "✓"
   &.disabled
     color: #999999
-  &.icon-checkmark
-    background-image: url(images/checkmark.gif)
   &.header
     display: block
     background: #DDD
