@@ -139,7 +139,9 @@ class Selection
     find_closest_sample: (index, offset, direction) ->
         cur_sample = @reading.samples[index]
         # find the sandwiching samples
-        index += direction while (prev_sample = cur_sample; cur_sample = @reading.samples[index + direction]) and !(prev_sample.time * direction <= offset * direction < cur_sample.time * direction)
+        while (prev_sample = cur_sample; cur_sample = @reading.samples[index + direction]) and
+                !(offset * direction < cur_sample.time * direction)
+            index += direction
         # choose the closer one
         if cur_sample and (offset - prev_sample.time) * direction > (cur_sample.time - offset) * direction
             index += direction
@@ -876,12 +878,13 @@ class window.FixFixUI
                         name: "##{index} #{eye} (#{sample.time} ms)"
                         className: "header"
                         disabled: true
-                    frozen:
+                    frozen: make_checkbox
                         name: "Frozen"
                         disabled: index <= from or index >= to
-                        icon: if sample.frozen then "checkmark" else undefined
-                        callback: (key, options) ->
+                        selected: sample.frozen
+                        click: (evt) ->
                             sample.fix(!sample.frozen)
+                            click
                     unfreeze_row:
                         name: "Unfreeze Row"
                         callback: (key, options) ->
@@ -912,10 +915,10 @@ class window.FixFixUI
                 last_undo = fixfix.undo.peek()
                 move_present = last_undo and (last_undo.constructor is MoveAction)
                 items:
-                    single:
+                    single: make_checkbox
                         name: "Single mode"
-                        icon: if fixfix.single_mode then "checkmark" else undefined
-                        callback: (key, options) ->
+                        selected: fixfix.single_mode
+                        click: (evt) ->
                             fixfix.single_mode = !fixfix.single_mode
                             true
                     undo:
@@ -945,25 +948,25 @@ class window.FixFixUI
                     select_speed:
                         name: "Jump Speed"
                         items:
-                            selspeed_100ms:
+                            selspeed_100ms: make_checkbox
                                 name: "100 ms"
-                                icon: if selection_jump == 100 then "checkmark" else undefined
-                                callback: (key, options) ->
+                                selected: selection_jump == 100
+                                click: (evt) ->
                                     selection_jump = 100
-                            selspeed_200ms:
+                            selspeed_200ms: make_checkbox
                                 name: "200 ms"
-                                icon: if selection_jump == 200 then "checkmark" else undefined
-                                callback: (key, options) ->
+                                selected: selection_jump == 200
+                                click: (evt) ->
                                     selection_jump = 200
-                            selspeed_500ms:
+                            selspeed_500ms: make_checkbox
                                 name: "500 ms"
-                                icon: if selection_jump == 500 then "checkmark" else undefined
-                                callback: (key, options) ->
+                                selected: selection_jump == 500
+                                click: (evt) ->
                                     selection_jump = 500
-                            selspeed_1000ms:
+                            selspeed_1000ms: make_checkbox
                                 name: "1000 ms"
-                                icon: if selection_jump == 1000 then "checkmark" else undefined
-                                callback: (key, options) ->
+                                selected: selection_jump == 1000
+                                click: (evt) ->
                                     selection_jump = 1000
 
         $(document).keydown (evt) ->
@@ -984,5 +987,16 @@ class window.FixFixUI
             evt.preventDefault()
             evt.stopPropagation()
             false
+
+        make_checkbox = (args) ->
+            args['type'] = 'checkbox'
+            args['events'] ||= {}
+            click_handler = args['click']
+            delete args['click']
+            args['events']['click'] = (evt) ->
+                $(this).closest('.context-menu-root').contextMenu('hide')
+                click_handler()
+            args
+
 
         set_opts()
