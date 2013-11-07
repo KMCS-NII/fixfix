@@ -107,7 +107,7 @@ class Sample
 
 
 class Selection
-    constructor: (@reading, @jump=500) -> # half a second default jump
+    constructor: (@reading) -> # half a second default jump
         @clear()
 
     clear: ->
@@ -144,9 +144,9 @@ class Selection
         if cur_sample and (offset - prev_sample.time) * direction > (cur_sample.time - offset) * direction
             index += direction
         index
-    next: (direction=1) ->
+    next: (direction, jump) ->
         return unless @valid()
-        @offset += @jump * direction
+        @offset += jump * direction
         @start = @find_closest_sample(@get_start(), @offset, direction)
         @end = @find_closest_sample(@get_end(), @offset + @span, direction)
         @reading.unhighlight()
@@ -209,7 +209,7 @@ class Reading
         # However, works in Firefox/Mac 23.0.1
         # $('.highlight').removeClass('highlight')
         $(document.querySelectorAll('.highlight')).removeClass('highlight')
-        if @selection.valid?
+        if @selection.valid()
             $('#reading').addClass('faint')
             @highlight_range(@selection.get_start(), @selection.get_end())
         else
@@ -310,6 +310,10 @@ class window.FixFix
         $(@$svg).svg(onLoad: @init)
         @undo = new UndoStack()
         @mode = null
+        @eyes =
+            left: true
+            center: true
+            right: true
 
 
     init: (@svg) =>
@@ -568,7 +572,7 @@ class window.FixFix
                                 sample.build_center()
                         for sample, index in @data.reading.samples
                             sample.index = index
-                        @render_reading()
+                        @render_reading(@eyes)
                         @data.reading.unhighlight()
                         @undo = new UndoStack()
                         @$svg.trigger('loaded')
@@ -583,7 +587,7 @@ class window.FixFix
         for word in @data.bb
             word.render_word(@svg, text_group)
 
-    render_reading: ->
+    render_reading: () ->
         $(@reading_group).empty()
         tree_factor = 20
 
@@ -594,8 +598,8 @@ class window.FixFix
                 sample = samples[index]
                 if sample?
                     sample.render_intereye(@svg, parent)
-        for eye of @data.reading.opts.eyes
-            if @data.reading.opts.eyes[eye]
+        for eye of @eyes
+            if @eyes[eye]
                 if @data.reading.flags.lines
                     treedraw @svg, @svg.group(@reading_group), samples.length - 1, tree_factor, (parent, index) =>
                         sample1 = samples[index]
@@ -613,6 +617,7 @@ class window.FixFixUI
         fixations = null
         load_timer = null
         nocache = false
+        selection_jump = 500 # default: half a second
 
         set_opts = ->
             fixations = $('#i-dt').is(':checked')
@@ -635,12 +640,11 @@ class window.FixFixUI
             else
                 delete opts.nocache
 
-            opts.eyes =
+            fixfix.opts = opts
+            fixfix.eyes =
                 left: $('#left-eye').is(':checked')
                 center: $('#center-eye').is(':checked')
                 right: $('#right-eye').is(':checked')
-
-            fixfix.opts = opts
 
         $(browser).fileTree {
                 script: 'files'
@@ -820,7 +824,7 @@ class window.FixFixUI
                         name: "Delete"
                         callback: (key, options) ->
                             type = if path[path.length - 1] == '/' then 'directory' else 'file'
-                            if confirm("Are you sure you wish to the #{type} #{path}?")
+                            if confirm("Are you sure you wish to delete the #{type} #{path}?")
                                 $.ajax
                                     url: 'delete' + path
                                     type: "POST"
@@ -838,7 +842,6 @@ class window.FixFixUI
                             if $ul
                                 make_new_folder_input($ul, target_directory)
                             else
-                                console.log("EXPANDING")
                                 $trigger.one 'show', (evt, $li) ->
                                     $ul = $li.children('ul')
                                     make_new_folder_input($ul, target_directory)
@@ -939,6 +942,29 @@ class window.FixFixUI
                         callback: (key, options) ->
                             fixfix.data.reading.selection.clear()
                             fixfix.data.reading.unhighlight()
+                    select_speed:
+                        name: "Jump Speed"
+                        items:
+                            selspeed_100ms:
+                                name: "100 ms"
+                                icon: if selection_jump == 100 then "checkmark" else undefined
+                                callback: (key, options) ->
+                                    selection_jump = 100
+                            selspeed_200ms:
+                                name: "200 ms"
+                                icon: if selection_jump == 200 then "checkmark" else undefined
+                                callback: (key, options) ->
+                                    selection_jump = 200
+                            selspeed_500ms:
+                                name: "500 ms"
+                                icon: if selection_jump == 500 then "checkmark" else undefined
+                                callback: (key, options) ->
+                                    selection_jump = 500
+                            selspeed_1000ms:
+                                name: "1000 ms"
+                                icon: if selection_jump == 1000 then "checkmark" else undefined
+                                callback: (key, options) ->
+                                    selection_jump = 1000
 
         $(document).keydown (evt) ->
             return unless fixfix.reading_file?
@@ -947,10 +973,10 @@ class window.FixFixUI
             return true if $target.is('input')
             switch evt.keyCode
                 when 37 # left
-                    fixfix.data.reading.selection.next(-1)
+                    fixfix.data.reading.selection.next(-1, selection_jump)
                     stop(evt)
                 when 39 # right
-                    fixfix.data.reading.selection.next(+1)
+                    fixfix.data.reading.selection.next(+1, selection_jump)
                     stop(evt)
 
 

@@ -165,9 +165,8 @@
   })();
 
   Selection = (function() {
-    function Selection(reading, jump) {
+    function Selection(reading) {
       this.reading = reading;
-      this.jump = jump != null ? jump : 500;
       this.clear();
     }
 
@@ -225,14 +224,11 @@
       return index;
     };
 
-    Selection.prototype.next = function(direction) {
-      if (direction == null) {
-        direction = 1;
-      }
+    Selection.prototype.next = function(direction, jump) {
       if (!this.valid()) {
         return;
       }
-      this.offset += this.jump * direction;
+      this.offset += jump * direction;
       this.start = this.find_closest_sample(this.get_start(), this.offset, direction);
       this.end = this.find_closest_sample(this.get_end(), this.offset + this.span, direction);
       return this.reading.unhighlight();
@@ -320,7 +316,7 @@
 
     Reading.prototype.unhighlight = function() {
       $(document.querySelectorAll('.highlight')).removeClass('highlight');
-      if (this.selection.valid != null) {
+      if (this.selection.valid()) {
         $('#reading').addClass('faint');
         return this.highlight_range(this.selection.get_start(), this.selection.get_end());
       } else {
@@ -465,6 +461,11 @@
       });
       this.undo = new UndoStack();
       this.mode = null;
+      this.eyes = {
+        left: true,
+        center: true,
+        right: true
+      };
     }
 
     FixFix.prototype.init = function(svg) {
@@ -747,7 +748,7 @@
                 sample = _ref2[index];
                 sample.index = index;
               }
-              _this.render_reading();
+              _this.render_reading(_this.eyes);
               _this.data.reading.unhighlight();
               _this.undo = new UndoStack();
               _results.push(_this.$svg.trigger('loaded'));
@@ -795,8 +796,8 @@
         });
       }
       _results = [];
-      for (eye in this.data.reading.opts.eyes) {
-        if (this.data.reading.opts.eyes[eye]) {
+      for (eye in this.eyes) {
+        if (this.eyes[eye]) {
           if (this.data.reading.flags.lines) {
             treedraw(this.svg, this.svg.group(this.reading_group), samples.length - 1, tree_factor, function(parent, index) {
               var sample1, sample2;
@@ -827,11 +828,12 @@
 
   window.FixFixUI = (function() {
     function FixFixUI(fixfix, browser) {
-      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_new_folder_input, nocache, set_opts, stop, upload,
+      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_new_folder_input, nocache, selection_jump, set_opts, stop, upload,
         _this = this;
       fixations = null;
       load_timer = null;
       nocache = false;
+      selection_jump = 500;
       set_opts = function() {
         var blink, dispersion, duration, opts, smoothing;
         fixations = $('#i-dt').is(':checked');
@@ -855,12 +857,12 @@
         } else {
           delete opts.nocache;
         }
-        opts.eyes = {
+        fixfix.opts = opts;
+        return fixfix.eyes = {
           left: $('#left-eye').is(':checked'),
           center: $('#center-eye').is(':checked'),
           right: $('#right-eye').is(':checked')
         };
-        return fixfix.opts = opts;
       };
       $(browser).fileTree({
         script: 'files',
@@ -1073,7 +1075,7 @@
                 callback: function(key, options) {
                   var type;
                   type = path[path.length - 1] === '/' ? 'directory' : 'file';
-                  if (confirm("Are you sure you wish to the " + type + " " + path + "?")) {
+                  if (confirm("Are you sure you wish to delete the " + type + " " + path + "?")) {
                     return $.ajax({
                       url: 'delete' + path,
                       type: "POST",
@@ -1097,7 +1099,6 @@
                   if ($ul) {
                     return make_new_folder_input($ul, target_directory);
                   } else {
-                    console.log("EXPANDING");
                     $trigger.one('show', function(evt, $li) {
                       $ul = $li.children('ul');
                       return make_new_folder_input($ul, target_directory);
@@ -1245,6 +1246,39 @@
                   fixfix.data.reading.selection.clear();
                   return fixfix.data.reading.unhighlight();
                 }
+              },
+              select_speed: {
+                name: "Jump Speed",
+                items: {
+                  selspeed_100ms: {
+                    name: "100 ms",
+                    icon: selection_jump === 100 ? "checkmark" : void 0,
+                    callback: function(key, options) {
+                      return selection_jump = 100;
+                    }
+                  },
+                  selspeed_200ms: {
+                    name: "200 ms",
+                    icon: selection_jump === 200 ? "checkmark" : void 0,
+                    callback: function(key, options) {
+                      return selection_jump = 200;
+                    }
+                  },
+                  selspeed_500ms: {
+                    name: "500 ms",
+                    icon: selection_jump === 500 ? "checkmark" : void 0,
+                    callback: function(key, options) {
+                      return selection_jump = 500;
+                    }
+                  },
+                  selspeed_1000ms: {
+                    name: "1000 ms",
+                    icon: selection_jump === 1000 ? "checkmark" : void 0,
+                    callback: function(key, options) {
+                      return selection_jump = 1000;
+                    }
+                  }
+                }
               }
             }
           };
@@ -1261,10 +1295,10 @@
         }
         switch (evt.keyCode) {
           case 37:
-            fixfix.data.reading.selection.next(-1);
+            fixfix.data.reading.selection.next(-1, selection_jump);
             return stop(evt);
           case 39:
-            fixfix.data.reading.selection.next(+1);
+            fixfix.data.reading.selection.next(+1, selection_jump);
             return stop(evt);
         }
       });
