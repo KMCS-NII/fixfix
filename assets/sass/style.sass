@@ -42,11 +42,12 @@ html, body
   background-color: #eeeeff
   height: 100%
   overflow: auto
-  .hover
-    background-color: #ccccff
 
-.droptarget
-  background-color: #ccccff
+body.drag
+  .browser
+    border: 5px dotted #999999
+    background-color: #cccccc
+    margin: -5px
 
 //  .selected
 //    background-color: #0000ff
@@ -151,3 +152,14 @@ html, body
     white-space: nowrap
     &.disabled
       color: inherit
+
+#help
+  position: fixed
+  height: auto
+  width: auto
+  bottom: 0
+  right: 0
+  background-color: #ffff99
+  border: 1px solid #cccc66
+  padding: 2px 5px
+  display: none

@@ -110,7 +110,7 @@
       var frozen, gaze;
       gaze = this[eye];
       frozen = this.frozen ? ' frozen' : '';
-      if ((gaze != null) && (gaze.x != null) && (gaze.y != null) && (gaze.pupil != null)) {
+      if ((gaze != null) && (gaze.x != null) && (gaze.y != null)) {
         return this[eye].el = svg.circle(parent, gaze.x, gaze.y, 3, {
           id: eye[0] + this.index,
           'data-index': this.index,
@@ -145,6 +145,7 @@
         return this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
           id: 's' + eye[0] + this.index,
           'data-index': this.index,
+          'data-eye': eye,
           "class": klass
         });
       }
@@ -324,6 +325,10 @@
       }
     };
 
+    Reading.prototype.toggle_eyes = function(eye, drawn) {
+      return $("[data-eye='" + eye + "']").toggleClass('drawn', drawn);
+    };
+
     Reading.prototype.save = function(file, from, to) {
       var changes, index, payload, sample, _i;
       if (to < from) {
@@ -461,11 +466,6 @@
       });
       this.undo = new UndoStack();
       this.mode = null;
-      this.eyes = {
-        left: true,
-        center: true,
-        right: true
-      };
     }
 
     FixFix.prototype.init = function(svg) {
@@ -748,8 +748,8 @@
                 sample = _ref2[index];
                 sample.index = index;
               }
-              _this.render_reading(_this.eyes);
               _this.data.reading.unhighlight();
+              _this.render_reading();
               _this.undo = new UndoStack();
               _results.push(_this.$svg.trigger('loaded'));
               break;
@@ -781,7 +781,7 @@
     };
 
     FixFix.prototype.render_reading = function() {
-      var eye, samples, tree_factor, _results,
+      var eye, samples, tree_factor, _i, _len, _ref1,
         _this = this;
       $(this.reading_group).empty();
       tree_factor = 20;
@@ -795,31 +795,28 @@
           }
         });
       }
-      _results = [];
-      for (eye in this.eyes) {
-        if (this.eyes[eye]) {
-          if (this.data.reading.flags.lines) {
-            treedraw(this.svg, this.svg.group(this.reading_group), samples.length - 1, tree_factor, function(parent, index) {
-              var sample1, sample2;
-              sample1 = samples[index];
-              sample2 = samples[index + 1];
-              if ((sample1 != null) && (sample2 != null)) {
-                return sample1.render_saccade(_this.svg, parent, eye, sample2);
-              }
-            });
-          }
-          _results.push(treedraw(this.svg, this.svg.group(this.reading_group), samples.length, tree_factor, function(parent, index) {
-            var sample;
-            sample = samples[index];
-            if (sample != null) {
-              return sample.render(_this.svg, parent, eye);
+      _ref1 = ['left', 'right', 'center'];
+      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+        eye = _ref1[_i];
+        if (this.data.reading.flags.lines) {
+          treedraw(this.svg, this.svg.group(this.reading_group), samples.length - 1, tree_factor, function(parent, index) {
+            var sample1, sample2;
+            sample1 = samples[index];
+            sample2 = samples[index + 1];
+            if ((sample1 != null) && (sample2 != null)) {
+              return sample1.render_saccade(_this.svg, parent, eye, sample2);
             }
-          }));
-        } else {
-          _results.push(void 0);
+          });
         }
+        treedraw(this.svg, this.svg.group(this.reading_group), samples.length, tree_factor, function(parent, index) {
+          var sample;
+          sample = samples[index];
+          if (sample != null) {
+            return sample.render(_this.svg, parent, eye);
+          }
+        });
       }
-      return _results;
+      return this.$svg.trigger('rendered');
     };
 
     return FixFix;
@@ -828,7 +825,7 @@
 
   window.FixFixUI = (function() {
     function FixFixUI(fixfix, browser) {
-      var exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_checkbox, make_new_folder_input, nocache, selection_jump, set_opts, stop, upload,
+      var addHint, exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_checkbox, make_new_folder_input, nocache, selection_jump, set_opts, stop, upload,
         _this = this;
       fixations = null;
       load_timer = null;
@@ -857,12 +854,7 @@
         } else {
           delete opts.nocache;
         }
-        fixfix.opts = opts;
-        return fixfix.eyes = {
-          left: $('#left-eye').is(':checked'),
-          center: $('#center-eye').is(':checked'),
-          right: $('#right-eye').is(':checked')
-        };
+        return fixfix.opts = opts;
       };
       $(browser).fileTree({
         script: 'files',
@@ -908,9 +900,11 @@
       });
       $('#i-dt').click(load);
       $('#eye-options input').click(function(evt) {
+        var $target, eye;
         if (fixfix.reading_file) {
-          set_opts();
-          return fixfix.render_reading();
+          $target = $(evt.target);
+          eye = evt.target.id.substr(0, evt.target.id.indexOf('-'));
+          return fixfix.data.reading.toggle_eyes(eye, $target.is(':checked'));
         }
       });
       fixfix.$svg.on('loaded', function(evt) {
@@ -940,6 +934,16 @@
       $('#scrap-changes-btn').click(function(evt) {
         load();
         return fixfix.$svg.trigger('clean');
+      });
+      fixfix.$svg.on('rendered', function(evt) {
+        var eye, _i, _len, _ref1, _results;
+        _ref1 = ['left', 'center', 'right'];
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          eye = _ref1[_i];
+          _results.push(fixfix.data.reading.toggle_eyes(eye, $("#" + eye + "-eye").is(':checked')));
+        }
+        return _results;
       });
       jQuery_xhr_factory = $.ajaxSettings.xhr;
       exts = ['xml', 'fixfix', 'tsv', 'bb'];
@@ -992,10 +996,10 @@
         return _results;
       };
       $('#browser').on('dragover', function(evt) {
-        return stop(evt);
+        return evt.preventDefault();
       });
       $('#browser').on('dragenter', function(evt) {
-        return stop(evt);
+        return evt.preventDefault();
       });
       $('#browser').on('drop', function(evt) {
         var $target, $target_li, $ul, files, is_root, path, target_directory, target_file, _, _ref1, _ref2, _ref3;
@@ -1321,6 +1325,10 @@
         return args;
       };
       set_opts();
+      addHint = function(html) {
+        return $('#help').html(html).delay(2000).slideDown(800).delay(4000).slideUp(800);
+      };
+      addHint("To upload, drag and drop your files into FixFix file browser");
     }
 
     return FixFixUI;
