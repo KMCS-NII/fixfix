@@ -71,7 +71,7 @@ class Sample
     render: (svg, parent, eye) ->
         gaze = this[eye]
         frozen = if @frozen then ' frozen' else ''
-        if gaze? and gaze.x? and gaze.y? and gaze.pupil?
+        if gaze? and gaze.x? and gaze.y?
             this[eye].el = svg.circle(parent, gaze.x, gaze.y, 3, {
                 id: eye[0] + @index
                 'data-index': @index
@@ -97,6 +97,7 @@ class Sample
             this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
                 id: 's' + eye[0] + @index
                 'data-index': @index
+                'data-eye': eye
                 class: klass
             })
 
@@ -217,6 +218,9 @@ class Reading
         else
             $('#reading').removeClass('faint')
 
+    toggle_eyes: (eye, drawn) ->
+        $("[data-eye='#{eye}']").toggleClass('drawn', drawn)
+
     save: (file, from, to) ->
         return if to < from
         changes = []
@@ -312,10 +316,6 @@ class window.FixFix
         $(@$svg).svg(onLoad: @init)
         @undo = new UndoStack()
         @mode = null
-        @eyes =
-            left: true
-            center: true
-            right: true
 
 
     init: (@svg) =>
@@ -574,8 +574,8 @@ class window.FixFix
                                 sample.build_center()
                         for sample, index in @data.reading.samples
                             sample.index = index
-                        @render_reading(@eyes)
                         @data.reading.unhighlight()
+                        @render_reading()
                         @undo = new UndoStack()
                         @$svg.trigger('loaded')
 
@@ -589,7 +589,7 @@ class window.FixFix
         for word in @data.bb
             word.render_word(@svg, text_group)
 
-    render_reading: () ->
+    render_reading: ->
         $(@reading_group).empty()
         tree_factor = 20
 
@@ -600,18 +600,19 @@ class window.FixFix
                 sample = samples[index]
                 if sample?
                     sample.render_intereye(@svg, parent)
-        for eye of @eyes
-            if @eyes[eye]
-                if @data.reading.flags.lines
-                    treedraw @svg, @svg.group(@reading_group), samples.length - 1, tree_factor, (parent, index) =>
-                        sample1 = samples[index]
-                        sample2 = samples[index + 1]
-                        if sample1? and sample2?
-                            sample1.render_saccade(@svg, parent, eye, sample2)
-                treedraw @svg, @svg.group(@reading_group), samples.length, tree_factor, (parent, index) =>
-                    sample = samples[index]
-                    if sample?
-                        sample.render(@svg, parent, eye)
+        for eye in ['left', 'right', 'center']
+            if @data.reading.flags.lines
+                treedraw @svg, @svg.group(@reading_group), samples.length - 1, tree_factor, (parent, index) =>
+                    sample1 = samples[index]
+                    sample2 = samples[index + 1]
+                    if sample1? and sample2?
+                        sample1.render_saccade(@svg, parent, eye, sample2)
+            treedraw @svg, @svg.group(@reading_group), samples.length, tree_factor, (parent, index) =>
+                sample = samples[index]
+                if sample?
+                    sample.render(@svg, parent, eye)
+        @$svg.trigger('rendered')
+
 
 
 class window.FixFixUI
@@ -643,10 +644,6 @@ class window.FixFixUI
                 delete opts.nocache
 
             fixfix.opts = opts
-            fixfix.eyes =
-                left: $('#left-eye').is(':checked')
-                center: $('#center-eye').is(':checked')
-                right: $('#right-eye').is(':checked')
 
         $(browser).fileTree {
                 script: 'files'
@@ -689,8 +686,9 @@ class window.FixFixUI
         # TODO don't redraw things that are already drawn
         $('#eye-options input').click (evt) =>
             if fixfix.reading_file
-                set_opts()
-                fixfix.render_reading()
+                $target = $(evt.target)
+                eye = evt.target.id.substr(0, evt.target.id.indexOf('-'))
+                fixfix.data.reading.toggle_eyes(eye, $target.is(':checked'))
 
         fixfix.$svg.on 'loaded', (evt) =>
             fixation_opts = fixfix.data.reading.flags.fixation
@@ -713,6 +711,10 @@ class window.FixFixUI
         $('#scrap-changes-btn').click (evt) =>
             load()
             fixfix.$svg.trigger('clean')
+
+        fixfix.$svg.on 'rendered', (evt) =>
+            for eye in ['left', 'center', 'right']
+                fixfix.data.reading.toggle_eyes(eye, $("##{eye}-eye").is(':checked'))
 
 
         jQuery_xhr_factory = $.ajaxSettings.xhr
@@ -758,9 +760,9 @@ class window.FixFixUI
 
                 
         $('#browser').on 'dragover', (evt) ->
-            stop(evt)
+            evt.preventDefault()
         $('#browser').on 'dragenter', (evt) ->
-            stop(evt)
+            evt.preventDefault()
         $('#browser').on 'drop', (evt) ->
             if evt.originalEvent.dataTransfer?.files?.length
                 # find out the directory
@@ -1000,3 +1002,13 @@ class window.FixFixUI
 
 
         set_opts()
+
+        addHint = (html) ->
+            $('#help').
+                html(html).
+                delay(2000).
+                slideDown(800).
+                delay(4000).
+                slideUp(800)
+
+        addHint("To upload, drag and drop your files into FixFix file browser")

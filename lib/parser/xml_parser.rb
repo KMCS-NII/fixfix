@@ -51,7 +51,8 @@ class XMLParser
 
   def flags
     {
-      center: true
+      center: true,
+      xml: true,
     }
   end
 
