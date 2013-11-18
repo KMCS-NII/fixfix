@@ -32,4 +32,33 @@ class FixFixParser
       str.to_i
     end
   end
+
+  def self.generate(reading)
+    headers = [
+      "FixPointLeftX",
+      "FixPointLeftY",
+      "FixPointRightX",
+      "FixPointRightX",
+      "FixPointX",
+      "FixPointX",
+      "FixDuration",
+      "MeanPupilLeft",
+      "MeanPupilRight",
+      "ReturnSweep",
+      "BlinkTime",
+      "MeanTimestamp",
+      "StartTimestamp",
+      "EndTimestamp",
+    ]
+
+    CSV.generate(
+      col_sep: "\t",
+      headers: headers,
+      write_headers: true
+    ) do |csv|
+      reading.to_a.each do |sample_array|
+        csv << sample_array
+      end
+    end
+  end
 end

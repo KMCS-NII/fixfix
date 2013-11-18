@@ -103,7 +103,7 @@ body.drag .browser {
     stroke-width: 0.2;
     stroke: #999900; }
 
-#download {
+#download, #xml-link {
   display: none; }
 
 .ralign {

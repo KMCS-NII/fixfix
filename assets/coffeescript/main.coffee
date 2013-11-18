@@ -704,6 +704,12 @@ class window.FixFixUI
             $('#fixfix-link').attr
                 href: "dl/fixfix#{fixfix.reading_file}"
                 download: "#{reading_file_name}.fixfix"
+            if fixfix.data.reading.flags.xml
+                $('#xml-link').css('display', 'inline').attr
+                    href: "dl/xml#{fixfix.reading_file}"
+                    download: "#{reading_file_name}.xml"
+            else
+                $('#xml-link').css('display', 'none')
             $('#download').css('display', 'block')
 
         fixfix.$svg.on 'dirty', (evt) ->
