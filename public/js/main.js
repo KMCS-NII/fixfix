@@ -907,6 +907,9 @@
           return fixfix.data.reading.toggle_eyes(eye, $target.is(':checked'));
         }
       });
+      fixfix.$svg.on('click', function(evt) {
+        return document.activeElement.blur();
+      });
       fixfix.$svg.on('loaded', function(evt) {
         var fixation_opts, fixation_opts_active, key, reading_file_name, value;
         fixation_opts = fixfix.data.reading.flags.fixation;

@@ -690,6 +690,9 @@ class window.FixFixUI
                 eye = evt.target.id.substr(0, evt.target.id.indexOf('-'))
                 fixfix.data.reading.toggle_eyes(eye, $target.is(':checked'))
 
+        fixfix.$svg.on 'click', (evt) =>
+            document.activeElement.blur()
+
         fixfix.$svg.on 'loaded', (evt) =>
             fixation_opts = fixfix.data.reading.flags.fixation
             fixation_opts_active = fixation_opts instanceof Object
