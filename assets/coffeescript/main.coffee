@@ -613,6 +613,11 @@ class window.FixFix
                     sample.render(@svg, parent, eye)
         @$svg.trigger('rendered')
 
+    perform_undo: ->
+        [from, to] = @undo.pop()
+        @$svg.trigger('dirty')
+        @data.reading.save(@reading_file, from, to)
+
 
 
 class window.FixFixUI
@@ -936,9 +941,7 @@ class window.FixFixUI
                         name: "Undo"
                         disabled: fixfix.undo.empty()
                         callback: (key, options) ->
-                            [from, to] = fixfix.undo.pop()
-                            fixfix.$svg.trigger('dirty')
-                            fixfix.data.reading.save(fixfix.reading_file, from, to)
+                            fixfix.perform_undo()
                     mode_sep: "----------"
                     move:
                         name: "Move"
@@ -983,14 +986,23 @@ class window.FixFixUI
         $(document).keydown (evt) ->
             return unless fixfix.reading_file?
             $target = $(evt.target)
-            # ignore input elements
-            return true if $target.is('input')
+            # ignore input elements with text
+            return true if $target.is('input:text, input:password')
             switch evt.keyCode
                 when 37 # left
                     fixfix.data.reading.selection.next(-1, selection_jump)
                     stop(evt)
                 when 39 # right
                     fixfix.data.reading.selection.next(+1, selection_jump)
+                    stop(evt)
+                when 90 # Z
+                    unless fixfix.undo.empty()
+                        fixfix.perform_undo()
+                        addFadeHint("Undo")
+                    stop(evt)
+                when 32 # space
+                    fixfix.single_mode = !fixfix.single_mode
+                    addFadeHint("Single Mode " + (if fixfix.single_mode then 'ON' else 'OFF'))
                     stop(evt)
 
 
@@ -1012,12 +1024,19 @@ class window.FixFixUI
 
         set_opts()
 
-        addHint = (html) ->
+        addSlideHint = (html) ->
             $('#help').
                 html(html).
-                delay(2000).
                 slideDown(800).
                 delay(4000).
                 slideUp(800)
 
-        addHint("To upload, drag and drop your files into FixFix file browser")
+        addFadeHint = (html) ->
+            $('#help').
+                stop(true, true).
+                show().
+                html(html).
+                delay(1000).
+                fadeOut(400)
+
+        addSlideHint("To upload, drag and drop your files into FixFix file browser")

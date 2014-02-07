@@ -819,13 +819,20 @@
       return this.$svg.trigger('rendered');
     };
 
+    FixFix.prototype.perform_undo = function() {
+      var from, to, _ref1;
+      _ref1 = this.undo.pop(), from = _ref1[0], to = _ref1[1];
+      this.$svg.trigger('dirty');
+      return this.data.reading.save(this.reading_file, from, to);
+    };
+
     return FixFix;
 
   })();
 
   window.FixFixUI = (function() {
     function FixFixUI(fixfix, browser) {
-      var addHint, exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_checkbox, make_new_folder_input, nocache, selection_jump, set_opts, stop, upload,
+      var addFadeHint, addSlideHint, exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_checkbox, make_new_folder_input, nocache, selection_jump, set_opts, stop, upload,
         _this = this;
       fixations = null;
       load_timer = null;
@@ -1234,10 +1241,7 @@
                 name: "Undo",
                 disabled: fixfix.undo.empty(),
                 callback: function(key, options) {
-                  var from, to, _ref1;
-                  _ref1 = fixfix.undo.pop(), from = _ref1[0], to = _ref1[1];
-                  fixfix.$svg.trigger('dirty');
-                  return fixfix.data.reading.save(fixfix.reading_file, from, to);
+                  return fixfix.perform_undo();
                 }
               },
               mode_sep: "----------",
@@ -1306,7 +1310,7 @@
           return;
         }
         $target = $(evt.target);
-        if ($target.is('input')) {
+        if ($target.is('input:text, input:password')) {
           return true;
         }
         switch (evt.keyCode) {
@@ -1315,6 +1319,16 @@
             return stop(evt);
           case 39:
             fixfix.data.reading.selection.next(+1, selection_jump);
+            return stop(evt);
+          case 90:
+            if (!fixfix.undo.empty()) {
+              fixfix.perform_undo();
+              addFadeHint("Undo");
+            }
+            return stop(evt);
+          case 32:
+            fixfix.single_mode = !fixfix.single_mode;
+            addFadeHint("Single Mode " + (fixfix.single_mode ? 'ON' : 'OFF'));
             return stop(evt);
         }
       });
@@ -1336,10 +1350,13 @@
         return args;
       };
       set_opts();
-      addHint = function(html) {
-        return $('#help').html(html).delay(2000).slideDown(800).delay(4000).slideUp(800);
+      addSlideHint = function(html) {
+        return $('#help').html(html).slideDown(800).delay(4000).slideUp(800);
       };
-      addHint("To upload, drag and drop your files into FixFix file browser");
+      addFadeHint = function(html) {
+        return $('#help').stop(true, true).show().html(html).delay(1000).fadeOut(400);
+      };
+      addSlideHint("To upload, drag and drop your files into FixFix file browser");
     }
 
     return FixFixUI;
