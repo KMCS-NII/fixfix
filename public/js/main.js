@@ -379,7 +379,7 @@
       this.records = [];
       for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
         sample = this.data.reading.samples[index];
-        this.records.push([sample.left.x, sample.left.y, sample.center.x, sample.center.y, sample.right.x, sample.right.y]);
+        this.records.push([sample.left.x, sample.left.y, sample.center.x, sample.center.y, sample.right.x, sample.right.y, sample.frozen]);
       }
     }
 
@@ -387,7 +387,7 @@
       var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
       for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
         sample = this.data.reading.samples[index];
-        _ref2 = this.records.shift(), sample.left.x = _ref2[0], sample.left.y = _ref2[1], sample.center.x = _ref2[2], sample.center.y = _ref2[3], sample.right.x = _ref2[4], sample.right.y = _ref2[5];
+        _ref2 = this.records.shift(), sample.left.x = _ref2[0], sample.left.y = _ref2[1], sample.center.x = _ref2[2], sample.center.y = _ref2[3], sample.right.x = _ref2[4], sample.right.y = _ref2[5], sample.frozen = _ref2[6];
         last_sample = this.data.reading.samples[index - 1];
         _ref3 = ['left', 'center', 'right'];
         for (_j = 0, _len = _ref3.length; _j < _len; _j++) {
@@ -395,6 +395,7 @@
           if ((_ref4 = sample[eye]) != null ? _ref4.el : void 0) {
             sample[eye].el.setAttribute('cx', sample[eye].x);
             sample[eye].el.setAttribute('cy', sample[eye].y);
+            $(sample[eye].el).toggleClass('frozen', sample.frozen);
           }
           if (sample[eye].sel) {
             sample[eye].sel.setAttribute('x1', sample[eye].x);

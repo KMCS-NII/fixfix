@@ -258,6 +258,7 @@ class MoveAction extends EditAction
                 sample.center.y
                 sample.right.x
                 sample.right.y
+                sample.frozen
             ])
 
     restore: ->
@@ -270,12 +271,14 @@ class MoveAction extends EditAction
                 sample.center.y
                 sample.right.x
                 sample.right.y
+                sample.frozen
             ] = @records.shift()
             last_sample = @data.reading.samples[index - 1]
             for eye in ['left', 'center', 'right']
                 if sample[eye]?.el
                     sample[eye].el.setAttribute('cx', sample[eye].x)
                     sample[eye].el.setAttribute('cy', sample[eye].y)
+                    $(sample[eye].el).toggleClass('frozen', sample.frozen)
                 if sample[eye].sel
                     sample[eye].sel.setAttribute('x1', sample[eye].x)
                     sample[eye].sel.setAttribute('y1', sample[eye].y)
