@@ -81,32 +81,13 @@ module Routes
 
       last_modified File.mtime(edit_file).httpdate()
 
-      headers = [
-        "FixPointLeftX",
-        "FixPointLeftY",
-        "FixPointRightX",
-        "FixPointRightX",
-        "FixPointX",
-        "FixPointX",
-        "FixDuration",
-        "MeanPupilLeft",
-        "MeanPupilRight",
-        "ReturnSweep",
-        "BlinkTime",
-        "MeanTimestamp",
-        "StartTimestamp",
-        "EndTimestamp",
-      ]
-
-      content_type 'text/plain', :charset => 'utf-8'
-      CSV.generate(
-        col_sep: "\t",
-        headers: headers,
-        write_headers: true
-      ) do |csv|
-        reading.to_a.each do |sample_array|
-          csv << sample_array
-        end
+      case type
+      when 'fixfix'
+        content_type 'text/tab-separated-values', :charset => 'utf-8'
+        FixFixParser.generate(reading)
+      when 'xml'
+        content_type 'application/xml', :charset => 'utf-8'
+        XMLParser.generate(reading, file)
       end
     end
 

@@ -258,6 +258,7 @@ class MoveAction extends EditAction
                 sample.center.y
                 sample.right.x
                 sample.right.y
+                sample.frozen
             ])
 
     restore: ->
@@ -270,12 +271,14 @@ class MoveAction extends EditAction
                 sample.center.y
                 sample.right.x
                 sample.right.y
+                sample.frozen
             ] = @records.shift()
             last_sample = @data.reading.samples[index - 1]
             for eye in ['left', 'center', 'right']
                 if sample[eye]?.el
                     sample[eye].el.setAttribute('cx', sample[eye].x)
                     sample[eye].el.setAttribute('cy', sample[eye].y)
+                    $(sample[eye].el).toggleClass('frozen', sample.frozen)
                 if sample[eye].sel
                     sample[eye].sel.setAttribute('x1', sample[eye].x)
                     sample[eye].sel.setAttribute('y1', sample[eye].y)
@@ -613,6 +616,11 @@ class window.FixFix
                     sample.render(@svg, parent, eye)
         @$svg.trigger('rendered')
 
+    perform_undo: ->
+        [from, to] = @undo.pop()
+        @$svg.trigger('dirty')
+        @data.reading.save(@reading_file, from, to)
+
 
 
 class window.FixFixUI
@@ -690,6 +698,9 @@ class window.FixFixUI
                 eye = evt.target.id.substr(0, evt.target.id.indexOf('-'))
                 fixfix.data.reading.toggle_eyes(eye, $target.is(':checked'))
 
+        fixfix.$svg.on 'click', (evt) =>
+            document.activeElement.blur()
+
         fixfix.$svg.on 'loaded', (evt) =>
             fixation_opts = fixfix.data.reading.flags.fixation
             fixation_opts_active = fixation_opts instanceof Object
@@ -704,6 +715,12 @@ class window.FixFixUI
             $('#fixfix-link').attr
                 href: "dl/fixfix#{fixfix.reading_file}"
                 download: "#{reading_file_name}.fixfix"
+            if fixfix.data.reading.flags.xml
+                $('#xml-link').css('display', 'inline').attr
+                    href: "dl/xml#{fixfix.reading_file}"
+                    download: "#{reading_file_name}.xml"
+            else
+                $('#xml-link').css('display', 'none')
             $('#download').css('display', 'block')
 
         fixfix.$svg.on 'dirty', (evt) ->
@@ -927,9 +944,7 @@ class window.FixFixUI
                         name: "Undo"
                         disabled: fixfix.undo.empty()
                         callback: (key, options) ->
-                            [from, to] = fixfix.undo.pop()
-                            fixfix.$svg.trigger('dirty')
-                            fixfix.data.reading.save(fixfix.reading_file, from, to)
+                            fixfix.perform_undo()
                     mode_sep: "----------"
                     move:
                         name: "Move"
@@ -974,14 +989,23 @@ class window.FixFixUI
         $(document).keydown (evt) ->
             return unless fixfix.reading_file?
             $target = $(evt.target)
-            # ignore input elements
-            return true if $target.is('input')
+            # ignore input elements with text
+            return true if $target.is('input:text, input:password')
             switch evt.keyCode
                 when 37 # left
                     fixfix.data.reading.selection.next(-1, selection_jump)
                     stop(evt)
                 when 39 # right
                     fixfix.data.reading.selection.next(+1, selection_jump)
+                    stop(evt)
+                when 90 # Z
+                    unless fixfix.undo.empty()
+                        fixfix.perform_undo()
+                        addFadeHint("Undo")
+                    stop(evt)
+                when 32 # space
+                    fixfix.single_mode = !fixfix.single_mode
+                    addFadeHint("Single Mode " + (if fixfix.single_mode then 'ON' else 'OFF'))
                     stop(evt)
 
 
@@ -1003,12 +1027,19 @@ class window.FixFixUI
 
         set_opts()
 
-        addHint = (html) ->
+        addSlideHint = (html) ->
             $('#help').
                 html(html).
-                delay(2000).
                 slideDown(800).
                 delay(4000).
                 slideUp(800)
 
-        addHint("To upload, drag and drop your files into FixFix file browser")
+        addFadeHint = (html) ->
+            $('#help').
+                stop(true, true).
+                show().
+                html(html).
+                delay(1000).
+                fadeOut(400)
+
+        addSlideHint("To upload, drag and drop your files into FixFix file browser")

@@ -60,4 +60,28 @@ class XMLParser
     doc_and_words unless @words
     @words
   end
+
+  def self.generate(reading, file)
+    doc = File.open(file) { |f| Nokogiri::XML(f.read) { |config| config.noblanks } }
+    events = doc.at_css('Events')
+    nodes = events.children.remove.select { |node| node.node_name != 'Fix' && node['Time'] }
+    reading.samples.each do |sample|
+      node = Nokogiri::XML::Node.new 'Fix', doc
+      node['Time'] = sample.time
+      node['Dur'] = sample.duration
+      node['X'] = (sample.left.x + sample.right.x) / 2
+      node['Y'] = (sample.left.y + sample.right.y) / 2
+      node['Xl'] = sample.left.x
+      node['Yl'] = sample.left.y
+      node['Xr'] = sample.right.x
+      node['Yr'] = sample.right.y
+      # TODO What about TT, Win, Cursor
+      nodes << node
+    end
+    nodes.sort_by! { |node| node['Time'].to_i }
+    nodes.each do |node|
+      events << node
+    end
+    doc.to_xml
+  end
 end
