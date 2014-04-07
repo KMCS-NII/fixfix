@@ -5,12 +5,12 @@ class Gaze
     @x, @y, @pupil, @validity = x, y, pupil, validity
   end
 
-  def to_json(*a)
+  def to_hash(*a)
     {
       x: @x,
       y: @y,
       pupil: @pupil,
       validity: @validity
-    }.to_json(*a)
+    }
   end
 end

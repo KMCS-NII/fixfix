@@ -50,17 +50,17 @@ class Sample
     sample
   end
 
-  def to_json(*a)
+  def to_hash(*a)
     rep = {
       time: @time
     }
-    rep[:left] = @left if @left
-    rep[:right] = @right if @right
+    rep[:left] = @left.to_hash if @left
+    rep[:right] = @right.to_hash if @right
     rep[:blink] = @blink if @blink
     rep[:rs] = @rs if @rs
     rep[:duration] = @duration if @duration
     rep[:start_time] = @start_time if @start_time
     rep[:end_time] = @end_time if @end_time
-    rep.to_json(*a)
+    rep
   end
 end
