@@ -3,7 +3,7 @@ source "https://rubygems.org"
 gem "sinatra"
 gem 'emk-sinatra-url-for'
 gem "haml"
-gem "rbtree"
+gem "rbtree-pure"
 gem "nokogiri"
 
 group :development do
