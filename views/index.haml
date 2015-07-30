@@ -9,6 +9,7 @@
     %script(src="#{url("js/jquery-ajax-reviver.js")}")
     %script(src="#{url("js/jquery.mousewheel.js")}")
     %script(src="#{url("js/jquery.contextmenu.js")}")
+    %script(src="#{url("js/jquery.nouislider.all.min.js")}")
     %script(src="#{url("js/main.js")}")
     :javascript
       $(function() {
@@ -17,6 +18,8 @@
       })
     %link(rel="stylesheet" href="#{url("css/jqueryFileTree.css")}")
     %link(rel="stylesheet" href="#{url("css/jquery.contextmenu.css")}")
+    %link(rel="stylesheet" href="#{url("css/jquery.nouislider.min.css")}")
+    %link(rel="stylesheet" href="#{url("css/jquery.nouislider.pips.min.css")}")
     %link(rel="stylesheet" href="#{url("css/style.css")}")
   %body
     #sidebar
@@ -66,3 +69,6 @@
             XML
     #svg
     #help
+    #footer
+      #selection-slider
+      #display-slider
