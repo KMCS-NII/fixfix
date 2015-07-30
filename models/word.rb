@@ -19,13 +19,17 @@ class Word
     end
   end
 
-  def to_json(*a)
+  def to_hash
     {
       word: @word,
       left: @left,
       top: @top,
       right: @right,
       bottom: @bottom
-    }.to_json(*a)
+    }
+  end
+
+  def to_json(*a)
+    to_hash.to_json(*a)
   end
 end

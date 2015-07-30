@@ -163,12 +163,16 @@ class Reading
     @samples.map(&:to_a)
   end
 
-  def to_json(*a)
+  def to_hash
     {
-      samples: @samples,
+      samples: @samples.map(&:to_hash),
       flags: @flags,
       row_bounds: @row_bounds
-    }.to_json(*a)
+    }
+  end
+
+  def to_json(*a)
+    to_hash.to_json(*a)
   end
 
   private
