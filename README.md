@@ -9,6 +9,7 @@ Libraries:
 * [jQuery Ajax Reviver](https://github.com/quickredfox/jquery-ajax-reviver)
 * [jQuery Mousewheel](https://github.com/brandonaaron/jquery-mousewheel) - modified
 * [jQuery contextMenu](http://medialize.github.io/jQuery-contextMenu/)
+* [jQuery noUiSlider](http://refreshless.com/nouislider/)
 
 Ideas:
 

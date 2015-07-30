@@ -1,9 +1,11 @@
 (function() {
-  var EditAction, Gaze, MoveAction, Reading, Sample, ScaleAction, Selection, UndoStack, Word, event_point, move_point, set_CTM, treedraw, _ref,
+  var EditAction, Gaze, MoveAction, Reading, Sample, ScaleAction, Selection, UndoStack, Word, display_samples, event_point, move_point, set_CTM, treedraw, _ref,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __slice = [].slice;
+
+  display_samples = 500;
 
   $.contextMenu.shadow = false;
 
@@ -188,6 +190,16 @@
       return this.update_span();
     };
 
+    Selection.prototype.set_start_end_time = function(start_time, end_time) {
+      if (start_time !== null) {
+        this.start = this.binary_search_sample(start_time);
+      }
+      if (end_time !== null) {
+        this.end = this.binary_search_sample(end_time);
+      }
+      return this.update_span();
+    };
+
     Selection.prototype.get_start = function() {
       return this.start || 0;
     };
@@ -233,6 +245,28 @@
       this.start = this.find_closest_sample(this.get_start(), this.offset, direction);
       this.end = this.find_closest_sample(this.get_end(), this.offset + this.span, direction);
       return this.reading.unhighlight();
+    };
+
+    Selection.prototype.binary_search_sample = function(time, start, end) {
+      var mid;
+      if (start == null) {
+        start = 0;
+      }
+      if (end == null) {
+        end = this.reading.samples.length - 1;
+      }
+      mid = ((start + end) / 2) | 0;
+      if (end - start === 1) {
+        if (time - this.reading.samples[start].time < this.reading.samples[end].time - time) {
+          return start;
+        } else {
+          return end;
+        }
+      } else if (time < this.reading.samples[mid].time) {
+        return this.binary_search_sample(time, start, mid);
+      } else {
+        return this.binary_search_sample(time, mid, end);
+      }
     };
 
     return Selection;
@@ -833,7 +867,7 @@
 
   window.FixFixUI = (function() {
     function FixFixUI(fixfix, browser) {
-      var addFadeHint, addSlideHint, exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_checkbox, make_new_folder_input, nocache, selection_jump, set_opts, stop, upload,
+      var addFadeHint, addSlideHint, exts, fixations, jQuery_xhr_factory, load, load_timer, load_with_delay, make_checkbox, make_new_folder_input, nocache, reinit_sliders, selection_jump, set_opts, set_slider, stop, upload,
         _this = this;
       fixations = null;
       load_timer = null;
@@ -906,6 +940,99 @@
           return $number.val($target.val());
         }
       });
+      set_slider = function(element, start, end) {
+        var end_time, start_time;
+        start_time = fixfix.data.reading.samples[start].time;
+        end_time = fixfix.data.reading.samples[end].time;
+        return $(element).val([start_time, end_time]);
+      };
+      reinit_sliders = function(start_time, end_time, num_samples) {
+        var end_pip, max_num_pips, minor, minor_pip, minors, num_pips, pip, range, selected_end_time, start_pip, x, _i, _len,
+          _this = this;
+        max_num_pips = Math.floor(document.body.clientWidth / 100);
+        range = end_time - start_time;
+        pip = Math.pow(10, Math.ceil(Math.log(range / max_num_pips) / Math.log(10)));
+        start_pip = Math.round(Math.ceil(start_time / pip)) * pip;
+        end_pip = Math.round(Math.floor(end_time / pip)) * pip;
+        num_pips = (end_pip - start_pip) / pip;
+        minors = [10, 5, 4, 2, 1];
+        for (_i = 0, _len = minors.length; _i < _len; _i++) {
+          minor = minors[_i];
+          if (num_pips * minor <= max_num_pips) {
+            break;
+          }
+        }
+        minor_pip = pip / minor;
+        start_pip = Math.round(Math.ceil(start_time / minor_pip)) * minor_pip;
+        end_pip = Math.round(Math.floor(end_time / minor_pip)) * minor_pip;
+        selected_end_time = end_time;
+        if (num_samples > display_samples) {
+          selected_end_time = start_time + range * (display_samples / num_samples);
+        }
+        $('#display-slider').noUiSlider({
+          start: [start_time, selected_end_time],
+          range: {
+            min: start_time,
+            max: end_time
+          }
+        }, true).noUiSlider_pips({
+          mode: 'values',
+          values: (function() {
+            var _j, _results;
+            _results = [];
+            for (x = _j = start_pip; minor_pip > 0 ? _j <= end_pip : _j >= end_pip; x = _j += minor_pip) {
+              _results.push(x);
+            }
+            return _results;
+          })(),
+          filter: function(value, type) {
+            if (value % pip === 0) {
+              return 1;
+            } else {
+              return 2;
+            }
+          }
+        });
+        return $('#selection-slider').noUiSlider({
+          start: [start_time, selected_end_time],
+          range: {
+            min: start_time,
+            max: end_time
+          }
+        }, true);
+      };
+      $('#display-slider').noUiSlider({
+        start: [0, 1],
+        range: {
+          min: 0,
+          max: 1
+        },
+        connect: true,
+        margin: 1,
+        behaviour: 'drag'
+      }).on({
+        change: function(evt) {
+          var start_end;
+          return start_end = $(evt.target).val();
+        }
+      });
+      $('#selection-slider').noUiSlider({
+        start: [0, 1],
+        range: {
+          min: 0,
+          max: 1
+        },
+        connect: true,
+        margin: 1,
+        behaviour: 'drag'
+      }).on({
+        change: function(evt) {
+          var start_end;
+          start_end = $(evt.target).val();
+          fixfix.data.reading.selection.set_start_end_time(start_end[0], start_end[1]);
+          return fixfix.data.reading.unhighlight();
+        }
+      });
       $('#i-dt').click(load);
       $('#eye-options input').click(function(evt) {
         var $target, eye;
@@ -919,7 +1046,7 @@
         return document.activeElement.blur();
       });
       fixfix.$svg.on('loaded', function(evt) {
-        var fixation_opts, fixation_opts_active, key, reading_file_name, value;
+        var end_time, fixation_opts, fixation_opts_active, key, reading_file_name, samples, start_time, value;
         fixation_opts = fixfix.data.reading.flags.fixation;
         fixation_opts_active = fixation_opts instanceof Object;
         $('#i-dt').prop('checked', !!fixation_opts);
@@ -945,7 +1072,11 @@
         } else {
           $('#xml-link').css('display', 'none');
         }
-        return $('#download').css('display', 'block');
+        $('#download').css('display', 'block');
+        samples = fixfix.data.reading.samples;
+        start_time = samples[0].time;
+        end_time = samples[samples.length - 1].time;
+        return reinit_sliders(start_time, end_time, samples.length);
       });
       fixfix.$svg.on('dirty', function(evt) {
         return $('#fix-options').addClass('dirty');
@@ -1317,9 +1448,11 @@
         switch (evt.keyCode) {
           case 37:
             fixfix.data.reading.selection.next(-1, selection_jump);
+            set_slider('#selection-slider', fixfix.data.reading.selection.start, fixfix.data.reading.selection.end);
             return stop(evt);
           case 39:
             fixfix.data.reading.selection.next(+1, selection_jump);
+            set_slider('#selection-slider', fixfix.data.reading.selection.start, fixfix.data.reading.selection.end);
             return stop(evt);
           case 90:
             if (!fixfix.undo.empty()) {

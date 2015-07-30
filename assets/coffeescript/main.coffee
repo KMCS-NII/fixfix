@@ -1,5 +1,6 @@
 # vim: ts=4:sts=4:sw=4
 
+display_samples = 500
 
 # contextMenu
 $.contextMenu.shadow = false
@@ -112,20 +113,23 @@ class Selection
         @clear()
 
     clear: ->
+        # start/end are sample#
         @start = null
         @end = null
         @span = null
         @offset = null
-        # @start = 20
-        # @end = 40
-        # @span = @reading.samples[@end].time - @reading.samples[@start].time
-        # @offset = @reading.samples[@start].time
 
     set_start: (start) ->
         @start = start
         @update_span()
     set_end: (end) ->
         @end = end
+        @update_span()
+    set_start_end_time: (start_time, end_time) ->
+        if start_time != null
+            @start = @binary_search_sample(start_time)
+        if end_time != null
+            @end = @binary_search_sample(end_time)
         @update_span()
     get_start: -> @start || 0
     get_end: -> if @end? then @end else @reading.samples.length - 1
@@ -153,6 +157,18 @@ class Selection
         @start = @find_closest_sample(@get_start(), @offset, direction)
         @end = @find_closest_sample(@get_end(), @offset + @span, direction)
         @reading.unhighlight()
+
+    binary_search_sample: (time, start = 0, end = @reading.samples.length - 1) ->
+        mid = ((start + end) / 2)|0
+        if end - start == 1
+            if time - @reading.samples[start].time < @reading.samples[end].time - time
+                start
+            else
+                end
+        else if time < @reading.samples[mid].time
+            @binary_search_sample(time, start, mid)
+        else
+            @binary_search_sample(time, mid, end)
 
 
 class Reading
@@ -689,6 +705,73 @@ class window.FixFixUI
             if $number? && $number.val() != $target.val()
                 $number.val($target.val())
 
+        set_slider = (element, start, end) ->
+            start_time = fixfix.data.reading.samples[start].time
+            end_time = fixfix.data.reading.samples[end].time
+            $(element).val([start_time, end_time])
+        reinit_sliders = (start_time, end_time, num_samples) ->
+            max_num_pips = Math.floor(document.body.clientWidth / 100)
+            range = end_time - start_time
+            # This can probably be simpler...
+            pip = Math.pow(10, Math.ceil(Math.log(range / max_num_pips) / Math.log(10)))
+            start_pip = Math.round(Math.ceil(start_time / pip)) * pip
+            end_pip = Math.round(Math.floor(end_time / pip)) * pip
+            num_pips = (end_pip - start_pip) / pip
+            minors = [10, 5, 4, 2, 1]
+            for minor in minors
+                break if num_pips * minor <= max_num_pips
+            minor_pip = pip / minor
+            start_pip = Math.round(Math.ceil(start_time / minor_pip)) * minor_pip
+            end_pip = Math.round(Math.floor(end_time / minor_pip)) * minor_pip
+
+            selected_end_time = end_time
+            if num_samples > display_samples
+                selected_end_time = start_time + range * (display_samples / num_samples)
+            
+            $('#display-slider').noUiSlider
+                start: [start_time, selected_end_time]
+                range:
+                    min: start_time
+                    max: end_time,
+                true
+            .noUiSlider_pips
+                mode: 'values'
+                values: (x for x in [start_pip..end_pip] by minor_pip)
+                filter: (value, type) =>
+                    if value % pip == 0 then 1 else 2
+            $('#selection-slider').noUiSlider
+                start: [start_time, selected_end_time]
+                range:
+                    min: start_time
+                    max: end_time,
+                true
+
+        $('#display-slider').noUiSlider
+            start: [0, 1]
+            range:
+                min: 0
+                max: 1
+            connect: true
+            margin: 1
+            behaviour: 'drag'
+        .on
+            change: (evt) =>
+                start_end = $(evt.target).val()
+                # TODO
+        $('#selection-slider').noUiSlider
+            start: [0, 1]
+            range:
+                min: 0
+                max: 1
+            connect: true
+            margin: 1
+            behaviour: 'drag'
+        .on
+            change: (evt) =>
+                start_end = $(evt.target).val()
+                fixfix.data.reading.selection.set_start_end_time(start_end[0], start_end[1])
+                fixfix.data.reading.unhighlight()
+
         $('#i-dt').click(load)
 
         # TODO don't redraw things that are already drawn
@@ -723,6 +806,11 @@ class window.FixFixUI
                 $('#xml-link').css('display', 'none')
             $('#download').css('display', 'block')
 
+            samples = fixfix.data.reading.samples
+            start_time = samples[0].time
+            end_time = samples[samples.length - 1].time
+            reinit_sliders(start_time, end_time, samples.length)
+
         fixfix.$svg.on 'dirty', (evt) ->
             $('#fix-options').addClass('dirty')
         $('#scrap-changes-btn').click (evt) =>
@@ -734,6 +822,7 @@ class window.FixFixUI
                 fixfix.data.reading.toggle_eyes(eye, $("##{eye}-eye").is(':checked'))
 
 
+        # upload handler
         jQuery_xhr_factory = $.ajaxSettings.xhr
         exts = ['xml', 'fixfix', 'tsv', 'bb']
         upload = (files, $ul, dir) ->
@@ -776,6 +865,7 @@ class window.FixFixUI
                 )($li)
 
                 
+        # upload by dragging files in
         $('#browser').on 'dragover', (evt) ->
             evt.preventDefault()
         $('#browser').on 'dragenter', (evt) ->
@@ -994,9 +1084,11 @@ class window.FixFixUI
             switch evt.keyCode
                 when 37 # left
                     fixfix.data.reading.selection.next(-1, selection_jump)
+                    set_slider('#selection-slider', fixfix.data.reading.selection.start, fixfix.data.reading.selection.end)
                     stop(evt)
                 when 39 # right
                     fixfix.data.reading.selection.next(+1, selection_jump)
+                    set_slider('#selection-slider', fixfix.data.reading.selection.start, fixfix.data.reading.selection.end)
                     stop(evt)
                 when 90 # Z
                     unless fixfix.undo.empty()
