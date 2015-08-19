@@ -1491,6 +1491,9 @@
         return $('#help').stop(true, true).show().html(html).delay(1000).fadeOut(400);
       };
       addSlideHint("To upload, drag and drop your files into FixFix file browser");
+      $('#sidebar').dblclick(function() {
+        return $('#sidebar .browser_container, #fix-options').fadeToggle();
+      });
     }
 
     return FixFixUI;
