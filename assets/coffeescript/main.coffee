@@ -1,6 +1,6 @@
 # vim: ts=4:sts=4:sw=4
 
-display_samples = 500
+display_samples = 1500
 
 # contextMenu
 $.contextMenu.shadow = false
