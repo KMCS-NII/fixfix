@@ -1429,6 +1429,35 @@
                     click: function(evt) {
                       return selection_jump = 1000;
                     }
+                  }),
+                  selspeed_sep: "---",
+                  selspeed_100000ms: make_checkbox({
+                    name: "100000 ms",
+                    selected: selection_jump === 100000,
+                    click: function(evt) {
+                      return selection_jump = 100000;
+                    }
+                  }),
+                  selspeed_200000ms: make_checkbox({
+                    name: "200000 ms",
+                    selected: selection_jump === 200000,
+                    click: function(evt) {
+                      return selection_jump = 200000;
+                    }
+                  }),
+                  selspeed_500000ms: make_checkbox({
+                    name: "500000 ms",
+                    selected: selection_jump === 500000,
+                    click: function(evt) {
+                      return selection_jump = 500000;
+                    }
+                  }),
+                  selspeed_1000000ms: make_checkbox({
+                    name: "1000000 ms",
+                    selected: selection_jump === 1000000,
+                    click: function(evt) {
+                      return selection_jump = 1000000;
+                    }
                   })
                 }
               }
