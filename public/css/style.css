@@ -140,7 +140,7 @@ body.drag .browser {
   position: fixed;
   height: auto;
   width: auto;
-  bottom: 0;
+  bottom: 90px;
   right: 0;
   background-color: #ffff99;
   border: 1px solid #cccc66;

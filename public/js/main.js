@@ -30,12 +30,11 @@
     return element.transform.baseVal.initialize(element.ownerSVGElement.createSVGTransformFromMatrix(matrix));
   };
 
-  treedraw = function(svg, parent, size, factor, callback) {
-    var parents, recurse;
-    if (!size) {
+  treedraw = function(svg, parent, start, end, factor, callback) {
+    var recurse;
+    if (start === end) {
       return;
     }
-    parents = [parent];
     recurse = function(parent, level) {
       var i, subparent, _i;
       if (level > 0) {
@@ -43,16 +42,16 @@
         for (i = _i = 1; 1 <= factor ? _i <= factor : _i >= factor; i = 1 <= factor ? ++_i : --_i) {
           subparent = level === 0 ? parent : svg.group(parent);
           recurse(subparent, level);
-          if (!size) {
+          if (start === end) {
             return;
           }
         }
       } else {
-        size -= 1;
-        return callback(parent, size);
+        end -= 1;
+        return callback(parent, end);
       }
     };
-    return recurse(parent, Math.ceil(Math.log(size) / Math.log(factor)));
+    return recurse(parent, Math.ceil(Math.log(end - start) / Math.log(factor)));
   };
 
   Word = (function() {
@@ -500,6 +499,7 @@
         onLoad: this.init
       });
       this.undo = new UndoStack();
+      this.display_start_end = [0, null];
       this.mode = null;
     }
 
@@ -760,7 +760,7 @@
           return v;
         }
       })).then(function(data) {
-        var index, sample, type, _i, _j, _len, _len1, _ref1, _ref2, _results;
+        var display_end, index, sample, type, _i, _j, _len, _len1, _ref1, _ref2, _results;
         _results = [];
         for (type in (data != null ? data.payload : void 0) || []) {
           _this.data[type] = data.payload[type];
@@ -784,6 +784,8 @@
                 sample.index = index;
               }
               _this.data.reading.unhighlight();
+              display_end = Math.min(display_samples, _this.data.reading.samples.length);
+              _this.display_start_end = [0, display_end];
               _this.render_reading();
               _this.undo = new UndoStack();
               _results.push(_this.$svg.trigger('loaded'));
@@ -816,13 +818,17 @@
     };
 
     FixFix.prototype.render_reading = function() {
-      var eye, samples, tree_factor, _i, _len, _ref1,
+      var end, eye, samples, start, tree_factor, _i, _len, _ref1, _ref2,
         _this = this;
       $(this.reading_group).empty();
       tree_factor = 20;
       samples = this.data.reading.samples;
+      _ref1 = this.display_start_end, start = _ref1[0], end = _ref1[1];
+      if (end == null) {
+        end = samples.length;
+      }
       if (this.data.reading.flags.lines) {
-        treedraw(this.svg, this.svg.group(this.reading_group), samples.length, tree_factor, function(parent, index) {
+        treedraw(this.svg, this.svg.group(this.reading_group), start, end, tree_factor, function(parent, index) {
           var sample;
           sample = samples[index];
           if (sample != null) {
@@ -830,11 +836,11 @@
           }
         });
       }
-      _ref1 = ['left', 'right', 'center'];
-      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-        eye = _ref1[_i];
+      _ref2 = ['left', 'right', 'center'];
+      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+        eye = _ref2[_i];
         if (this.data.reading.flags.lines) {
-          treedraw(this.svg, this.svg.group(this.reading_group), samples.length - 1, tree_factor, function(parent, index) {
+          treedraw(this.svg, this.svg.group(this.reading_group), start, end - 1, tree_factor, function(parent, index) {
             var sample1, sample2;
             sample1 = samples[index];
             sample2 = samples[index + 1];
@@ -843,7 +849,7 @@
             }
           });
         }
-        treedraw(this.svg, this.svg.group(this.reading_group), samples.length, tree_factor, function(parent, index) {
+        treedraw(this.svg, this.svg.group(this.reading_group), start, end, tree_factor, function(parent, index) {
           var sample;
           sample = samples[index];
           if (sample != null) {
@@ -941,14 +947,21 @@
         }
       });
       set_slider = function(element, start, end) {
-        var end_time, start_time;
-        start_time = fixfix.data.reading.samples[start].time;
-        end_time = fixfix.data.reading.samples[end].time;
+        var end_time, samples, start_time, _ref1, _ref2;
+        samples = fixfix.data.reading.samples;
+        start_time = (_ref1 = samples[start]) != null ? _ref1.time : void 0;
+        end_time = (_ref2 = samples[end]) != null ? _ref2.time : void 0;
         return $(element).val([start_time, end_time]);
       };
-      reinit_sliders = function(start_time, end_time, num_samples) {
-        var end_pip, max_num_pips, minor, minor_pip, minors, num_pips, pip, range, selected_end_time, start_pip, x, _i, _len,
+      reinit_sliders = function() {
+        var display_end_time, display_start_time, end, end_pip, end_time, max_num_pips, minor, minor_pip, minors, num_pips, pip, range, samples, start, start_pip, start_time, x, _i, _len, _ref1, _ref2,
           _this = this;
+        console.log(fixfix.data.reading);
+        _ref1 = fixfix.display_start_end, start = _ref1[0], end = _ref1[1];
+        samples = fixfix.data.reading.samples;
+        _ref2 = [0, start, end - 1, samples.length - 1].map(function(index) {
+          return samples[index].time;
+        }), start_time = _ref2[0], display_start_time = _ref2[1], display_end_time = _ref2[2], end_time = _ref2[3];
         max_num_pips = Math.floor(document.body.clientWidth / 100);
         range = end_time - start_time;
         pip = Math.pow(10, Math.ceil(Math.log(range / max_num_pips) / Math.log(10)));
@@ -965,12 +978,8 @@
         minor_pip = pip / minor;
         start_pip = Math.round(Math.ceil(start_time / minor_pip)) * minor_pip;
         end_pip = Math.round(Math.floor(end_time / minor_pip)) * minor_pip;
-        selected_end_time = end_time;
-        if (num_samples > display_samples) {
-          selected_end_time = start_time + range * (display_samples / num_samples);
-        }
         $('#display-slider').noUiSlider({
-          start: [start_time, selected_end_time],
+          start: [display_start_time, display_end_time],
           range: {
             min: start_time,
             max: end_time
@@ -994,7 +1003,7 @@
           }
         });
         return $('#selection-slider').noUiSlider({
-          start: [start_time, selected_end_time],
+          start: [start_time, end_time],
           range: {
             min: start_time,
             max: end_time
@@ -1012,8 +1021,12 @@
         behaviour: 'drag'
       }).on({
         change: function(evt) {
-          var start_end;
-          return start_end = $(evt.target).val();
+          var end, start, _ref1;
+          _ref1 = $(evt.target).val(), start = _ref1[0], end = _ref1[1];
+          start = fixfix.data.reading.selection.binary_search_sample(start);
+          end = fixfix.data.reading.selection.binary_search_sample(end);
+          fixfix.display_start_end = [start, end];
+          return fixfix.render_reading();
         }
       });
       $('#selection-slider').noUiSlider({
@@ -1046,7 +1059,7 @@
         return document.activeElement.blur();
       });
       fixfix.$svg.on('loaded', function(evt) {
-        var end_time, fixation_opts, fixation_opts_active, key, reading_file_name, samples, start_time, value;
+        var fixation_opts, fixation_opts_active, key, reading_file_name, samples, value;
         fixation_opts = fixfix.data.reading.flags.fixation;
         fixation_opts_active = fixation_opts instanceof Object;
         $('#i-dt').prop('checked', !!fixation_opts);
@@ -1074,9 +1087,7 @@
         }
         $('#download').css('display', 'block');
         samples = fixfix.data.reading.samples;
-        start_time = samples[0].time;
-        end_time = samples[samples.length - 1].time;
-        return reinit_sliders(start_time, end_time, samples.length);
+        return reinit_sliders();
       });
       fixfix.$svg.on('dirty', function(evt) {
         return $('#fix-options').addClass('dirty');
@@ -1330,6 +1341,7 @@
                 name: "Selection Start",
                 callback: function(key, options) {
                   fixfix.data.reading.selection.set_start(index);
+                  set_slider('#selection-slider', fixfix.data.reading.selection.start, fixfix.data.reading.selection.end);
                   return fixfix.data.reading.unhighlight();
                 }
               },
@@ -1337,6 +1349,7 @@
                 name: "Selection End",
                 callback: function(key, options) {
                   fixfix.data.reading.selection.set_end(index);
+                  set_slider('#selection-slider', fixfix.data.reading.selection.start, fixfix.data.reading.selection.end);
                   return fixfix.data.reading.unhighlight();
                 }
               },

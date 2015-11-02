@@ -28,20 +28,19 @@ set_CTM = (element, matrix) ->
         element.ownerSVGElement.createSVGTransformFromMatrix(matrix))
 
 # tree hierarchy for SVG elements, hoping to speed up layout task
-treedraw = (svg, parent, size, factor, callback) ->
-    return unless size
-    parents = [parent]
+treedraw = (svg, parent, start, end, factor, callback) ->
+    return if start == end
     recurse = (parent, level) ->
         if level > 0
             level -= 1
             for i in [1..factor]
                 subparent = if level == 0 then parent else svg.group(parent)
                 recurse(subparent, level)
-                return unless size
+                return if start == end
         else
-            size -= 1
-            callback(parent, size)
-    recurse(parent, Math.ceil(Math.log(size) / Math.log(factor)))
+            end -= 1
+            callback(parent, end)
+    recurse(parent, Math.ceil(Math.log(end - start) / Math.log(factor)))
 
 
 
@@ -334,6 +333,7 @@ class window.FixFix
         @data = {}
         $(@$svg).svg(onLoad: @init)
         @undo = new UndoStack()
+        @display_start_end = [0, null]
         @mode = null
 
 
@@ -594,6 +594,8 @@ class window.FixFix
                         for sample, index in @data.reading.samples
                             sample.index = index
                         @data.reading.unhighlight()
+                        display_end = Math.min(display_samples, @data.reading.samples.length)
+                        @display_start_end = [0, display_end]
                         @render_reading()
                         @undo = new UndoStack()
                         @$svg.trigger('loaded')
@@ -614,19 +616,21 @@ class window.FixFix
 
         samples = @data.reading.samples
         # TODO remove flags.center
+        [start, end] = this.display_start_end
+        end = samples.length unless end?
         if @data.reading.flags.lines
-            treedraw @svg, @svg.group(@reading_group), samples.length, tree_factor, (parent, index) =>
+            treedraw @svg, @svg.group(@reading_group), start, end, tree_factor, (parent, index) =>
                 sample = samples[index]
                 if sample?
                     sample.render_intereye(@svg, parent)
         for eye in ['left', 'right', 'center']
             if @data.reading.flags.lines
-                treedraw @svg, @svg.group(@reading_group), samples.length - 1, tree_factor, (parent, index) =>
+                treedraw @svg, @svg.group(@reading_group), start, end - 1, tree_factor, (parent, index) =>
                     sample1 = samples[index]
                     sample2 = samples[index + 1]
                     if sample1? and sample2?
                         sample1.render_saccade(@svg, parent, eye, sample2)
-            treedraw @svg, @svg.group(@reading_group), samples.length, tree_factor, (parent, index) =>
+            treedraw @svg, @svg.group(@reading_group), start, end, tree_factor, (parent, index) =>
                 sample = samples[index]
                 if sample?
                     sample.render(@svg, parent, eye)
@@ -706,10 +710,15 @@ class window.FixFixUI
                 $number.val($target.val())
 
         set_slider = (element, start, end) ->
-            start_time = fixfix.data.reading.samples[start].time
-            end_time = fixfix.data.reading.samples[end].time
+            samples = fixfix.data.reading.samples
+            start_time = samples[start]?.time
+            end_time = samples[end]?.time
             $(element).val([start_time, end_time])
-        reinit_sliders = (start_time, end_time, num_samples) ->
+        reinit_sliders = ->
+            [start, end] = fixfix.display_start_end
+            samples = fixfix.data.reading.samples
+            [start_time, display_start_time, display_end_time, end_time] =
+                [0, start, end - 1, samples.length - 1].map((index) -> samples[index].time)
             max_num_pips = Math.floor(document.body.clientWidth / 100)
             range = end_time - start_time
             # This can probably be simpler...
@@ -724,12 +733,8 @@ class window.FixFixUI
             start_pip = Math.round(Math.ceil(start_time / minor_pip)) * minor_pip
             end_pip = Math.round(Math.floor(end_time / minor_pip)) * minor_pip
 
-            selected_end_time = end_time
-            if num_samples > display_samples
-                selected_end_time = start_time + range * (display_samples / num_samples)
-            
             $('#display-slider').noUiSlider
-                start: [start_time, selected_end_time]
+                start: [display_start_time, display_end_time]
                 range:
                     min: start_time
                     max: end_time,
@@ -740,7 +745,7 @@ class window.FixFixUI
                 filter: (value, type) =>
                     if value % pip == 0 then 1 else 2
             $('#selection-slider').noUiSlider
-                start: [start_time, selected_end_time]
+                start: [start_time, end_time]
                 range:
                     min: start_time
                     max: end_time,
@@ -756,8 +761,11 @@ class window.FixFixUI
             behaviour: 'drag'
         .on
             change: (evt) =>
-                start_end = $(evt.target).val()
-                # TODO
+                [start, end] = $(evt.target).val()
+                start = fixfix.data.reading.selection.binary_search_sample(start)
+                end = fixfix.data.reading.selection.binary_search_sample(end)
+                fixfix.display_start_end = [start, end]
+                fixfix.render_reading()
         $('#selection-slider').noUiSlider
             start: [0, 1]
             range:
@@ -807,9 +815,7 @@ class window.FixFixUI
             $('#download').css('display', 'block')
 
             samples = fixfix.data.reading.samples
-            start_time = samples[0].time
-            end_time = samples[samples.length - 1].time
-            reinit_sliders(start_time, end_time, samples.length)
+            reinit_sliders()
 
         fixfix.$svg.on 'dirty', (evt) ->
             $('#fix-options').addClass('dirty')
@@ -1004,11 +1010,13 @@ class window.FixFixUI
                         name: "Selection Start"
                         callback: (key, options) ->
                             fixfix.data.reading.selection.set_start(index)
+                            set_slider('#selection-slider', fixfix.data.reading.selection.start, fixfix.data.reading.selection.end)
                             fixfix.data.reading.unhighlight()
                     select_end:
                         name: "Selection End"
                         callback: (key, options) ->
                             fixfix.data.reading.selection.set_end(index)
+                            set_slider('#selection-slider', fixfix.data.reading.selection.start, fixfix.data.reading.selection.end)
                             fixfix.data.reading.unhighlight()
                     scale_point:
                         name: "Scale Point"

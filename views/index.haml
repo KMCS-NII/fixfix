@@ -15,6 +15,25 @@
       $(function() {
         fixfix = new FixFix('#svg');
         new FixFixUI(fixfix, '#browser')
+        if (location.hash) {
+          var file = location.hash.replace(/^#\/*/, '');
+          location.hash = '';
+          var split = file.split(/\/+/);
+          fixfix.load(file);
+          var currentPath = '';
+          var openNext = function(evt) {
+            currentPath += '/' + split.shift();
+            var selector = 'a[rel="' + currentPath + '/"]';
+            var $a = $(selector);
+            if ($a.length) {
+              if (split.length) {
+                $a.closest('li').one('show', openNext);
+              }
+              $a.trigger('click');
+            }
+          };
+          $('#browser').one('show', openNext);
+        }
       })
     %link(rel="stylesheet" href="#{url("css/jqueryFileTree.css")}")
     %link(rel="stylesheet" href="#{url("css/jquery.contextmenu.css")}")
