@@ -1,7 +1,12 @@
 html, body {
   margin: 0;
   padding: 0;
-  font: 15px arial, sans-serif; }
+  font: 15px arial, sans-serif;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  cursor: default; }
 
 #svg, svg {
   height: 100%;
@@ -140,7 +145,7 @@ body.drag .browser {
   position: fixed;
   height: auto;
   width: auto;
-  bottom: 0;
+  bottom: 90px;
   right: 0;
   background-color: #ffff99;
   border: 1px solid #cccc66;
