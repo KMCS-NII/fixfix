@@ -1,6 +1,7 @@
 require 'json'
 
 class Word
+  attr_reader :word
   def initialize(*args)
     @word, @left, @top, @right, @bottom = *args
   end
@@ -31,5 +32,9 @@ class Word
 
   def to_json(*a)
     to_hash.to_json(*a)
+  end
+
+  def to_s
+    "#{@word}\t#{@left},#{@top},#{@right},#{@bottom}"
   end
 end
