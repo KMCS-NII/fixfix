@@ -72,20 +72,18 @@ class Sample
         gaze = this[eye]
         frozen = if @frozen then ' frozen' else ''
         if gaze? and gaze.x? and gaze.y?
-            this[eye].el = svg.circle(parent, gaze.x, gaze.y, 3, {
+            this[eye].el = svg.circle parent, gaze.x, gaze.y, 3,
                 id: eye[0] + @index
                 'data-index': @index
                 'data-eye': eye
                 class: 'drawn ' + eye + frozen
-            })
 
     render_intereye: (svg, parent) ->
         if @left.x? and @left.y? and @right.x? and @right.y?
-            this.iel = svg.line(parent, @left.x, @left.y, @right.x, @right.y, {
+            this.iel = svg.line parent, @left.x, @left.y, @right.x, @right.y,
                 id: 'i' + @index
                 'data-index': @index
                 class: 'drawn inter'
-            })
 
     render_saccade: (svg, parent, eye, next) ->
         gaze1 = this[eye]
@@ -94,12 +92,29 @@ class Sample
             klass = 'saccade drawn ' + eye
             klass += ' rs' if @rs?
             klass += ' blink' if @blink?
-            this[eye].sel = svg.line(parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y, {
+            this[eye].sel = svg.line parent, gaze1.x, gaze1.y, gaze2.x, gaze2.y,
                 id: 's' + eye[0] + @index
                 'data-index': @index
                 'data-eye': eye
                 class: klass
-            })
+
+    render_reference: (svg, parent, eye) ->
+        if (gaze_ref = @reference?[eye])
+            this[eye].xel = svg.circle parent, gaze_ref.x, gaze_ref.y, 2,
+                id: 'x' + eye[0] + @index
+                'data-index': @index
+                'data-eye': eye
+                class: 'reference drawn ' + eye
+
+    render_reference_line: (svg, parent, eye) ->
+        gaze = this[eye]
+        if (gaze_ref = @reference?[eye])
+            this[eye].lxel = svg.line parent, gaze.x, gaze.y, gaze_ref.x, gaze_ref.y,
+                id: 'lx' + eye[0] + @index
+                'data-index': @index
+                'data-eye': eye
+                class: 'reference drawn ' + eye
+
 
     fix: (value = true) ->
         this.frozen = value
@@ -203,6 +218,10 @@ class Reading
                     elements.push(sample_eye.el)
                     # saccades, including the return sweeps on each end
                     elements.push(sample_eye.sel)
+                    # reference elements
+                    elements.push(sample_eye.xel)
+                    # reference lines
+                    elements.push(sample_eye.lxel)
 
         $(elements).toggleClass(klass, onoff)
 
@@ -234,7 +253,7 @@ class Reading
             $('#reading').removeClass('faint')
 
     toggle_eyes: (eye, drawn) ->
-        $("[data-eye='#{eye}']").toggleClass('drawn', drawn)
+        $("#reading").toggleClass('drawn-' + eye, drawn)
 
     save: (file, from, to) ->
         return if to < from
@@ -449,16 +468,19 @@ class window.FixFix
                         if sample.center
                             move_point(sample.center?.el, 'cx', 'cy', sample.center)
                             move_point(sample.center?.sel, 'x1', 'y1', sample.center)
+                            move_point(sample?.center?.lxel, 'x1', 'y1', sample.center)
                             move_point(prev_sample?.center?.sel, 'x2', 'y2', sample.center)
                         if sample.left and eye != 'right'
                             move_point(sample.left?.el, 'cx', 'cy', sample.left)
                             move_point(sample?.iel, 'x1', 'y1', sample.left)
                             move_point(sample.left?.sel, 'x1', 'y1', sample.left)
+                            move_point(sample?.left.lxel, 'x1', 'y1', sample.left)
                             move_point(prev_sample?.left.sel, 'x2', 'y2', sample.left)
                         if sample.right and eye != 'left'
                             move_point(sample.right?.el, 'cx', 'cy', sample.right)
                             move_point(sample?.iel, 'x2', 'y2', sample.right)
                             move_point(sample.right?.sel, 'x1', 'y1', sample.right)
+                            move_point(sample?.right?.lxel, 'x1', 'y1', sample.right)
                             move_point(prev_sample?.right?.sel, 'x2', 'y2', sample.right)
 
                         prev_sample = sample
@@ -563,23 +585,25 @@ class window.FixFix
         @data.reading.save(@reading_file, selection_start, selection_end)
         @scale_point = moved_index
 
+    sample_reviver: (k, v) ->
+        if v? and typeof(v) == 'object'
+            if "word" of v
+                return new Word(v.word, v.left, v.top, v.right, v.bottom)
+            else if "validity" of v
+                return new Gaze(v.x, v.y, v.pupil, v.validity)
+            else if "time" of v
+                return new Sample(v.time, v.rs, v.blink, v.left, v.right, v.duration, v.start, v.end)
+            else if "samples" of v
+                return new Reading(v.samples, v.flags, v.row_bounds || [])
+        return v
+
     load: (file) ->
         @opts.load = file
         ($.ajax
             url: "load.json"
             dataType: 'json'
             data: @opts
-            revivers: (k, v) ->
-                if v? and typeof(v) == 'object'
-                    if "word" of v
-                        return new Word(v.word, v.left, v.top, v.right, v.bottom)
-                    else if "validity" of v
-                        return new Gaze(v.x, v.y, v.pupil, v.validity)
-                    else if "time" of v
-                        return new Sample(v.time, v.rs, v.blink, v.left, v.right, v.duration, v.start, v.end)
-                    else if "samples" of v
-                        return new Reading(v.samples, v.flags, v.row_bounds || [])
-                return v
+            revivers: @sample_reviver
         ).then (data) =>
             for type of data?.payload || []
                 @data[type] = data.payload[type]
@@ -588,6 +612,7 @@ class window.FixFix
                     when 'bb' then @render_bb()
                     when 'reading'
                         @reading_file = file
+                        delete @reference_file
                         if @data.reading.flags.center
                             for sample in @data.reading.samples
                                 sample.build_center()
@@ -599,6 +624,30 @@ class window.FixFix
                         @render_reading()
                         @undo = new UndoStack()
                         @$svg.trigger('loaded')
+
+    load_reference: (file) ->
+        @opts.load = file
+        ($.ajax
+            url: "load.json"
+            dataType: 'json'
+            data: @opts
+            revivers: @sample_reviver
+        ).then (data) =>
+            @reference_file = file
+            ref_samples = data.payload.reading.samples
+            samples = @data.reading.samples
+            i = 0
+            len = samples.length
+            for sample in ref_samples
+                i += 1 while i < len and samples[i].time < sample.time
+                break if i >= len
+                if samples[i].time == sample.time && samples[i].duration == sample.duration
+                    sample.build_center() if @data.reading.flags.center
+                    samples[i].reference =
+                        left: sample.left
+                        right: sample.right
+                        center: sample.center
+            @render_reading()
 
     render_bb: ->
         $(@bb_group).empty()
@@ -634,6 +683,15 @@ class window.FixFix
                 sample = samples[index]
                 if sample?
                     sample.render(@svg, parent, eye)
+            if @reference_file
+                treedraw @svg, @svg.group(@reading_group), start, end, tree_factor, (parent, index) =>
+                    sample = samples[index]
+                    if sample?
+                        sample.render_reference(@svg, parent, eye)
+                treedraw @svg, @svg.group(@reading_group), start, end, tree_factor, (parent, index) =>
+                    sample = samples[index]
+                    if sample?
+                        sample.render_reference_line(@svg, parent, eye)
         @$svg.trigger('rendered')
 
     perform_undo: ->
@@ -824,7 +882,7 @@ class window.FixFixUI
             fixfix.$svg.trigger('clean')
 
         fixfix.$svg.on 'rendered', (evt) =>
-            for eye in ['left', 'center', 'right']
+            for eye in ['left', 'center', 'right', 'ref']
                 fixfix.data.reading.toggle_eyes(eye, $("##{eye}-eye").is(':checked'))
 
 
@@ -936,17 +994,23 @@ class window.FixFixUI
                 duration: 0
             build: ($trigger, evt) ->
                 path = $trigger.find('a').attr('rel')
+                type = if path[path.length - 1] == '/' then 'directory' else 'file'
+                ext = path.match(/[^.\/]*$/)[0]
                 items:
                     delete:
                         name: "Delete"
                         callback: (key, options) ->
-                            type = if path[path.length - 1] == '/' then 'directory' else 'file'
                             if confirm("Are you sure you wish to delete the #{type} #{path}?")
                                 $.ajax
                                     url: 'delete' + path
                                     type: "POST"
                                     success: ->
                                         $trigger.remove()
+                    reference:
+                        name: "Load Reference"
+                        disabled: type != 'file' || ["fixfix", "tsv", "xml"].indexOf(ext) == -1 || fixfix.reading_file == path
+                        callback: (key, options) ->
+                            fixfix.load_reference(path)
                     folder:
                         name: "New Folder"
                         callback: (key, options) ->

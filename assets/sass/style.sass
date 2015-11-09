@@ -1,3 +1,6 @@
+$reference_opacity: 0.3
+$faint_opacity: 0.1
+
 html, body
   margin: 0
   padding: 0
@@ -39,6 +42,8 @@ html, body
     color: #cc0000
   label[for="right-eye"]
     color: #0000ff
+  label[for="ref-eyes"]
+    opacity: 0.5
 
 .browser_container
   height: 300px
@@ -76,13 +81,21 @@ body.drag
 #reading
   &.faint
     circle, line
-      opacity: 0.1
-    circle.highlight, line.highlight
-      opacity: inherit
+      opacity: $faint_opacity
+      &.reference
+        opacity: 0
+        &.highlight
+          opacity: $reference_opacity
+      &.highlight
+        opacity: inherit
+
+  circle, line
+    &.reference
+      opacity: $reference_opacity
 
   circle
     fill: none
-  circle.drawn
+  &.drawn-left circle.left:not(.reference), &.drawn-right circle.right:not(.reference), &.drawn-center circle.center:not(.reference), &.drawn-ref.drawn-left circle.reference.left, &.drawn-ref.drawn-right circle.reference.right, &.drawn-ref.drawn-center circle.reference.center
     stroke: #ffffff
     stroke-width: 0.5px
     cursor: pointer
@@ -96,8 +109,10 @@ body.drag
       stroke: #00ccff
       stroke-width: 1.3
 
-  line.drawn
+  &.drawn-left line.left:not(.reference), &.drawn-right line.right:not(.reference), &.drawn-center line.center:not(.reference), &.drawn-ref.drawn-left line.reference.left, &.drawn-ref.drawn-right line.reference.right, &.drawn-ref.drawn-center line.reference.center
     stroke-width: 0.5px
+    &.reference
+      stroke-width: 0.2px
     &.left
       stroke: #ff0000
     &.right
@@ -105,6 +120,8 @@ body.drag
     &.center
       stroke: #000000
       stroke-width: 1.5px
+      &.reference
+        stroke-width: 0.2px
     &.inter
       stroke-width: 0.2px
       stroke: #000000
