@@ -37,7 +37,7 @@ html, body {
   color: #cc0000; }
 #eye-options label[for="right-eye"] {
   color: blue; }
-#eye-options label[for="ref-eyes"] {
+#eye-options label[for="ref-eye"] {
   opacity: 0.5; }
 
 .browser_container {
@@ -77,7 +77,8 @@ body.drag .browser {
   #reading.faint circle.highlight, #reading.faint line.highlight {
     opacity: inherit; }
 #reading circle.reference, #reading line.reference {
-  opacity: 0.3; }
+  opacity: 0.3;
+  pointer-events: none; }
 #reading circle {
   fill: none; }
 #reading.drawn-left circle.left:not(.reference), #reading.drawn-right circle.right:not(.reference), #reading.drawn-center circle.center:not(.reference), #reading.drawn-ref.drawn-left circle.reference.left, #reading.drawn-ref.drawn-right circle.reference.right, #reading.drawn-ref.drawn-center circle.reference.center {

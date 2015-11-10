@@ -1,6 +1,6 @@
 # vim: ts=4:sts=4:sw=4
 
-display_samples = 500
+display_samples = 1500
 
 # contextMenu
 $.contextMenu.shadow = false
@@ -313,9 +313,12 @@ class MoveAction extends EditAction
                     sample[eye].el.setAttribute('cx', sample[eye].x)
                     sample[eye].el.setAttribute('cy', sample[eye].y)
                     $(sample[eye].el).toggleClass('frozen', sample.frozen)
-                if sample[eye].sel
+                if sample[eye]?.sel
                     sample[eye].sel.setAttribute('x1', sample[eye].x)
                     sample[eye].sel.setAttribute('y1', sample[eye].y)
+                if sample[eye]?.lxel
+                    sample[eye].lxel.setAttribute('x1', sample[eye].x)
+                    sample[eye].lxel.setAttribute('y1', sample[eye].y)
                 if last_sample and last_sample[eye]?.sel
                     last_sample[eye].sel.setAttribute('x2', sample[eye].x)
                     last_sample[eye].sel.setAttribute('y2', sample[eye].y)
@@ -673,6 +676,15 @@ class window.FixFix
                 if sample?
                     sample.render_intereye(@svg, parent)
         for eye in ['left', 'right', 'center']
+            if @reference_file
+                treedraw @svg, @svg.group(@reading_group), start, end, tree_factor, (parent, index) =>
+                    sample = samples[index]
+                    if sample?
+                        sample.render_reference(@svg, parent, eye)
+                treedraw @svg, @svg.group(@reading_group), start, end, tree_factor, (parent, index) =>
+                    sample = samples[index]
+                    if sample?
+                        sample.render_reference_line(@svg, parent, eye)
             if @data.reading.flags.lines
                 treedraw @svg, @svg.group(@reading_group), start, end - 1, tree_factor, (parent, index) =>
                     sample1 = samples[index]
@@ -683,15 +695,6 @@ class window.FixFix
                 sample = samples[index]
                 if sample?
                     sample.render(@svg, parent, eye)
-            if @reference_file
-                treedraw @svg, @svg.group(@reading_group), start, end, tree_factor, (parent, index) =>
-                    sample = samples[index]
-                    if sample?
-                        sample.render_reference(@svg, parent, eye)
-                treedraw @svg, @svg.group(@reading_group), start, end, tree_factor, (parent, index) =>
-                    sample = samples[index]
-                    if sample?
-                        sample.render_reference_line(@svg, parent, eye)
         @$svg.trigger('rendered')
 
     perform_undo: ->

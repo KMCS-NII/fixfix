@@ -42,7 +42,7 @@ html, body
     color: #cc0000
   label[for="right-eye"]
     color: #0000ff
-  label[for="ref-eyes"]
+  label[for="ref-eye"]
     opacity: 0.5
 
 .browser_container
@@ -78,6 +78,7 @@ body.drag
     fill: #666666
     text-anchor: middle
     alignment-baseline: middle
+
 #reading
   &.faint
     circle, line
@@ -92,6 +93,7 @@ body.drag
   circle, line
     &.reference
       opacity: $reference_opacity
+      pointer-events: none
 
   circle
     fill: none

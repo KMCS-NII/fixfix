@@ -5,7 +5,7 @@
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __slice = [].slice;
 
-  display_samples = 500;
+  display_samples = 1500;
 
   $.contextMenu.shadow = false;
 
@@ -444,7 +444,7 @@
     }
 
     MoveAction.prototype.restore = function() {
-      var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
+      var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
       for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
         sample = this.data.reading.samples[index];
         _ref2 = this.records.shift(), sample.left.x = _ref2[0], sample.left.y = _ref2[1], sample.center.x = _ref2[2], sample.center.y = _ref2[3], sample.right.x = _ref2[4], sample.right.y = _ref2[5], sample.frozen = _ref2[6];
@@ -457,11 +457,15 @@
             sample[eye].el.setAttribute('cy', sample[eye].y);
             $(sample[eye].el).toggleClass('frozen', sample.frozen);
           }
-          if (sample[eye].sel) {
+          if ((_ref5 = sample[eye]) != null ? _ref5.sel : void 0) {
             sample[eye].sel.setAttribute('x1', sample[eye].x);
             sample[eye].sel.setAttribute('y1', sample[eye].y);
           }
-          if (last_sample && ((_ref5 = last_sample[eye]) != null ? _ref5.sel : void 0)) {
+          if ((_ref6 = sample[eye]) != null ? _ref6.lxel : void 0) {
+            sample[eye].lxel.setAttribute('x1', sample[eye].x);
+            sample[eye].lxel.setAttribute('y1', sample[eye].y);
+          }
+          if (last_sample && ((_ref7 = last_sample[eye]) != null ? _ref7.sel : void 0)) {
             last_sample[eye].sel.setAttribute('x2', sample[eye].x);
             last_sample[eye].sel.setAttribute('y2', sample[eye].y);
           }
@@ -910,6 +914,22 @@
       _ref2 = ['left', 'right', 'center'];
       for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
         eye = _ref2[_i];
+        if (this.reference_file) {
+          treedraw(this.svg, this.svg.group(this.reading_group), start, end, tree_factor, function(parent, index) {
+            var sample;
+            sample = samples[index];
+            if (sample != null) {
+              return sample.render_reference(_this.svg, parent, eye);
+            }
+          });
+          treedraw(this.svg, this.svg.group(this.reading_group), start, end, tree_factor, function(parent, index) {
+            var sample;
+            sample = samples[index];
+            if (sample != null) {
+              return sample.render_reference_line(_this.svg, parent, eye);
+            }
+          });
+        }
         if (this.data.reading.flags.lines) {
           treedraw(this.svg, this.svg.group(this.reading_group), start, end - 1, tree_factor, function(parent, index) {
             var sample1, sample2;
@@ -927,22 +947,6 @@
             return sample.render(_this.svg, parent, eye);
           }
         });
-        if (this.reference_file) {
-          treedraw(this.svg, this.svg.group(this.reading_group), start, end, tree_factor, function(parent, index) {
-            var sample;
-            sample = samples[index];
-            if (sample != null) {
-              return sample.render_reference(_this.svg, parent, eye);
-            }
-          });
-          treedraw(this.svg, this.svg.group(this.reading_group), start, end, tree_factor, function(parent, index) {
-            var sample;
-            sample = samples[index];
-            if (sample != null) {
-              return sample.render_reference_line(_this.svg, parent, eye);
-            }
-          });
-        }
       }
       return this.$svg.trigger('rendered');
     };
