@@ -237,6 +237,10 @@ class Reading
         $('#reading').addClass('faint')
         @toggle_class_on_range(from, to, 'highlight', true)
 
+    highlight_reference_of: (index, eye) ->
+        sample = @samples[index]
+        $(sample[eye].xel).add(sample[eye].lxel).addClass('refhighlight')
+
     unhighlight: ->
         # changed because it breaks down:
         # Chrome/Mac Version 30.0.1599.101
@@ -246,6 +250,7 @@ class Reading
         # However, works in Firefox/Mac 23.0.1
         # $('.highlight').removeClass('highlight')
         $(document.querySelectorAll('.highlight')).removeClass('highlight')
+        $(document.querySelectorAll('.refhighlight')).removeClass('refhighlight')
         if @selection.valid()
             $('#reading').addClass('faint')
             @highlight_range(@selection.get_start(), @selection.get_end())
@@ -396,6 +401,7 @@ class window.FixFix
                         $target = $(evt.target)
                         index = $target.data('index')
                         @data.reading.highlight_row_of(index)
+                        @data.reading.highlight_reference_of(index, $target.data('eye'))
 
                         if @single_mode
                             from = to = index

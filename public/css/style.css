@@ -79,6 +79,9 @@ body.drag .browser {
 #reading circle.reference, #reading line.reference {
   opacity: 0.3;
   pointer-events: none; }
+#reading circle.refhighlight, #reading line.refhighlight {
+  opacity: 1 !important;
+  stroke-width: 0.8 !important; }
 #reading circle {
   fill: none; }
 #reading.drawn-left circle.left:not(.reference), #reading.drawn-right circle.right:not(.reference), #reading.drawn-center circle.center:not(.reference), #reading.drawn-ref.drawn-left circle.reference.left, #reading.drawn-ref.drawn-right circle.reference.right, #reading.drawn-ref.drawn-center circle.reference.center {

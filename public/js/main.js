@@ -375,8 +375,15 @@
       return this.toggle_class_on_range(from, to, 'highlight', true);
     };
 
+    Reading.prototype.highlight_reference_of = function(index, eye) {
+      var sample;
+      sample = this.samples[index];
+      return $(sample[eye].xel).add(sample[eye].lxel).addClass('refhighlight');
+    };
+
     Reading.prototype.unhighlight = function() {
       $(document.querySelectorAll('.highlight')).removeClass('highlight');
+      $(document.querySelectorAll('.refhighlight')).removeClass('refhighlight');
       if (this.selection.valid()) {
         $('#reading').addClass('faint');
         return this.highlight_range(this.selection.get_start(), this.selection.get_end());
@@ -570,6 +577,7 @@
               $target = $(evt.target);
               index = $target.data('index');
               _this.data.reading.highlight_row_of(index);
+              _this.data.reading.highlight_reference_of(index, $target.data('eye'));
               if (_this.single_mode) {
                 from = to = index;
               } else {
