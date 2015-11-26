@@ -37,6 +37,8 @@ html, body {
   color: #cc0000; }
 #eye-options label[for="right-eye"] {
   color: blue; }
+#eye-options label[for="ref-eye"] {
+  opacity: 0.5; }
 
 .browser_container {
   height: 300px; }
@@ -68,43 +70,57 @@ body.drag .browser {
 
 #reading.faint circle, #reading.faint line {
   opacity: 0.1; }
-#reading.faint circle.highlight, #reading.faint line.highlight {
-  opacity: inherit; }
+  #reading.faint circle.reference, #reading.faint line.reference {
+    opacity: 0; }
+    #reading.faint circle.reference.highlight, #reading.faint line.reference.highlight {
+      opacity: 0.3; }
+  #reading.faint circle.highlight, #reading.faint line.highlight {
+    opacity: inherit; }
+#reading circle.reference, #reading line.reference {
+  opacity: 0.3;
+  pointer-events: none; }
+#reading circle.refhighlight, #reading line.refhighlight {
+  opacity: 1 !important;
+  stroke-width: 0.8 !important; }
 #reading circle {
   fill: none; }
-#reading circle.drawn {
+#reading.drawn-left circle.left:not(.reference), #reading.drawn-right circle.right:not(.reference), #reading.drawn-center circle.center:not(.reference), #reading.drawn-ref.drawn-left circle.reference.left, #reading.drawn-ref.drawn-right circle.reference.right, #reading.drawn-ref.drawn-center circle.reference.center {
   stroke: white;
   stroke-width: 0.5px;
   cursor: pointer; }
-  #reading circle.drawn.left {
+  #reading.drawn-left circle.left:not(.reference).left, #reading.drawn-right circle.right:not(.reference).left, #reading.drawn-center circle.center:not(.reference).left, #reading.drawn-ref.drawn-left circle.reference.left.left, #reading.drawn-ref.drawn-right circle.reference.right.left, #reading.drawn-ref.drawn-center circle.reference.center.left {
     fill: red; }
-  #reading circle.drawn.right {
+  #reading.drawn-left circle.left:not(.reference).right, #reading.drawn-right circle.right:not(.reference).right, #reading.drawn-center circle.center:not(.reference).right, #reading.drawn-ref.drawn-left circle.reference.left.right, #reading.drawn-ref.drawn-right circle.reference.right.right, #reading.drawn-ref.drawn-center circle.reference.center.right {
     fill: blue; }
-  #reading circle.drawn.center {
+  #reading.drawn-left circle.left:not(.reference).center, #reading.drawn-right circle.right:not(.reference).center, #reading.drawn-center circle.center:not(.reference).center, #reading.drawn-ref.drawn-left circle.reference.left.center, #reading.drawn-ref.drawn-right circle.reference.right.center, #reading.drawn-ref.drawn-center circle.reference.center.center {
     fill: black; }
-  #reading circle.drawn.frozen {
+  #reading.drawn-left circle.left:not(.reference).frozen, #reading.drawn-right circle.right:not(.reference).frozen, #reading.drawn-center circle.center:not(.reference).frozen, #reading.drawn-ref.drawn-left circle.reference.left.frozen, #reading.drawn-ref.drawn-right circle.reference.right.frozen, #reading.drawn-ref.drawn-center circle.reference.center.frozen {
     stroke: #00ccff;
     stroke-width: 1.3; }
-#reading line.drawn {
+#reading.drawn-left line.left:not(.reference), #reading.drawn-right line.right:not(.reference), #reading.drawn-center line.center:not(.reference), #reading.drawn-ref.drawn-left line.reference.left, #reading.drawn-ref.drawn-right line.reference.right, #reading.drawn-ref.drawn-center line.reference.center {
   stroke-width: 0.5px; }
-  #reading line.drawn.left {
+  #reading.drawn-left line.left:not(.reference).reference, #reading.drawn-right line.right:not(.reference).reference, #reading.drawn-center line.center:not(.reference).reference, #reading.drawn-ref.drawn-left line.reference.left.reference, #reading.drawn-ref.drawn-right line.reference.right.reference, #reading.drawn-ref.drawn-center line.reference.center.reference {
+    stroke-width: 0.2px; }
+  #reading.drawn-left line.left:not(.reference).left, #reading.drawn-right line.right:not(.reference).left, #reading.drawn-center line.center:not(.reference).left, #reading.drawn-ref.drawn-left line.reference.left.left, #reading.drawn-ref.drawn-right line.reference.right.left, #reading.drawn-ref.drawn-center line.reference.center.left {
     stroke: red; }
-  #reading line.drawn.right {
+  #reading.drawn-left line.left:not(.reference).right, #reading.drawn-right line.right:not(.reference).right, #reading.drawn-center line.center:not(.reference).right, #reading.drawn-ref.drawn-left line.reference.left.right, #reading.drawn-ref.drawn-right line.reference.right.right, #reading.drawn-ref.drawn-center line.reference.center.right {
     stroke: blue; }
-  #reading line.drawn.center {
+  #reading.drawn-left line.left:not(.reference).center, #reading.drawn-right line.right:not(.reference).center, #reading.drawn-center line.center:not(.reference).center, #reading.drawn-ref.drawn-left line.reference.left.center, #reading.drawn-ref.drawn-right line.reference.right.center, #reading.drawn-ref.drawn-center line.reference.center.center {
     stroke: black;
     stroke-width: 1.5px; }
-  #reading line.drawn.inter {
+    #reading.drawn-left line.left:not(.reference).center.reference, #reading.drawn-right line.right:not(.reference).center.reference, #reading.drawn-center line.center:not(.reference).center.reference, #reading.drawn-ref.drawn-left line.reference.left.center.reference, #reading.drawn-ref.drawn-right line.reference.right.center.reference, #reading.drawn-ref.drawn-center line.reference.center.center.reference {
+      stroke-width: 0.2px; }
+  #reading.drawn-left line.left:not(.reference).inter, #reading.drawn-right line.right:not(.reference).inter, #reading.drawn-center line.center:not(.reference).inter, #reading.drawn-ref.drawn-left line.reference.left.inter, #reading.drawn-ref.drawn-right line.reference.right.inter, #reading.drawn-ref.drawn-center line.reference.center.inter {
     stroke-width: 0.2px;
     stroke: black; }
-  #reading line.drawn.rs.left, #reading line.drawn.rs.right {
+  #reading.drawn-left line.left:not(.reference).rs.left, #reading.drawn-left line.left:not(.reference).rs.right, #reading.drawn-right line.right:not(.reference).rs.left, #reading.drawn-right line.right:not(.reference).rs.right, #reading.drawn-center line.center:not(.reference).rs.left, #reading.drawn-center line.center:not(.reference).rs.right, #reading.drawn-ref.drawn-left line.reference.left.rs.left, #reading.drawn-ref.drawn-left line.reference.left.rs.right, #reading.drawn-ref.drawn-right line.reference.right.rs.left, #reading.drawn-ref.drawn-right line.reference.right.rs.right, #reading.drawn-ref.drawn-center line.reference.center.rs.left, #reading.drawn-ref.drawn-center line.reference.center.rs.right {
     stroke: none; }
-  #reading line.drawn.rs.center {
+  #reading.drawn-left line.left:not(.reference).rs.center, #reading.drawn-right line.right:not(.reference).rs.center, #reading.drawn-center line.center:not(.reference).rs.center, #reading.drawn-ref.drawn-left line.reference.left.rs.center, #reading.drawn-ref.drawn-right line.reference.right.rs.center, #reading.drawn-ref.drawn-center line.reference.center.rs.center {
     stroke-width: 0.3;
     stroke: #006600; }
-  #reading line.drawn.blink.left, #reading line.drawn.blink.right {
+  #reading.drawn-left line.left:not(.reference).blink.left, #reading.drawn-left line.left:not(.reference).blink.right, #reading.drawn-right line.right:not(.reference).blink.left, #reading.drawn-right line.right:not(.reference).blink.right, #reading.drawn-center line.center:not(.reference).blink.left, #reading.drawn-center line.center:not(.reference).blink.right, #reading.drawn-ref.drawn-left line.reference.left.blink.left, #reading.drawn-ref.drawn-left line.reference.left.blink.right, #reading.drawn-ref.drawn-right line.reference.right.blink.left, #reading.drawn-ref.drawn-right line.reference.right.blink.right, #reading.drawn-ref.drawn-center line.reference.center.blink.left, #reading.drawn-ref.drawn-center line.reference.center.blink.right {
     stroke: none; }
-  #reading line.drawn.blink.center {
+  #reading.drawn-left line.left:not(.reference).blink.center, #reading.drawn-right line.right:not(.reference).blink.center, #reading.drawn-center line.center:not(.reference).blink.center, #reading.drawn-ref.drawn-left line.reference.left.blink.center, #reading.drawn-ref.drawn-right line.reference.right.blink.center, #reading.drawn-ref.drawn-center line.reference.center.blink.center {
     stroke-width: 0.2;
     stroke: #999900; }
 

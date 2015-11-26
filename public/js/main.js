@@ -5,7 +5,7 @@
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __slice = [].slice;
 
-  display_samples = 500;
+  display_samples = 1500;
 
   $.contextMenu.shadow = false;
 
@@ -148,6 +148,31 @@
           'data-index': this.index,
           'data-eye': eye,
           "class": klass
+        });
+      }
+    };
+
+    Sample.prototype.render_reference = function(svg, parent, eye) {
+      var gaze_ref, _ref;
+      if ((gaze_ref = (_ref = this.reference) != null ? _ref[eye] : void 0)) {
+        return this[eye].xel = svg.circle(parent, gaze_ref.x, gaze_ref.y, 2, {
+          id: 'x' + eye[0] + this.index,
+          'data-index': this.index,
+          'data-eye': eye,
+          "class": 'reference drawn ' + eye
+        });
+      }
+    };
+
+    Sample.prototype.render_reference_line = function(svg, parent, eye) {
+      var gaze, gaze_ref, _ref;
+      gaze = this[eye];
+      if ((gaze_ref = (_ref = this.reference) != null ? _ref[eye] : void 0)) {
+        return this[eye].lxel = svg.line(parent, gaze.x, gaze.y, gaze_ref.x, gaze_ref.y, {
+          id: 'lx' + eye[0] + this.index,
+          'data-index': this.index,
+          'data-eye': eye,
+          "class": 'reference drawn ' + eye
         });
       }
     };
@@ -326,6 +351,8 @@
           if ((sample_eye = sample[eye])) {
             elements.push(sample_eye.el);
             elements.push(sample_eye.sel);
+            elements.push(sample_eye.xel);
+            elements.push(sample_eye.lxel);
           }
         }
       }
@@ -348,8 +375,15 @@
       return this.toggle_class_on_range(from, to, 'highlight', true);
     };
 
+    Reading.prototype.highlight_reference_of = function(index, eye) {
+      var sample;
+      sample = this.samples[index];
+      return $(sample[eye].xel).add(sample[eye].lxel).addClass('refhighlight');
+    };
+
     Reading.prototype.unhighlight = function() {
       $(document.querySelectorAll('.highlight')).removeClass('highlight');
+      $(document.querySelectorAll('.refhighlight')).removeClass('refhighlight');
       if (this.selection.valid()) {
         $('#reading').addClass('faint');
         return this.highlight_range(this.selection.get_start(), this.selection.get_end());
@@ -359,7 +393,7 @@
     };
 
     Reading.prototype.toggle_eyes = function(eye, drawn) {
-      return $("[data-eye='" + eye + "']").toggleClass('drawn', drawn);
+      return $("#reading").toggleClass('drawn-' + eye, drawn);
     };
 
     Reading.prototype.save = function(file, from, to) {
@@ -417,7 +451,7 @@
     }
 
     MoveAction.prototype.restore = function() {
-      var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
+      var eye, index, last_sample, sample, _i, _j, _len, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
       for (index = _i = _ref = this.from, _ref1 = this.to; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; index = _ref <= _ref1 ? ++_i : --_i) {
         sample = this.data.reading.samples[index];
         _ref2 = this.records.shift(), sample.left.x = _ref2[0], sample.left.y = _ref2[1], sample.center.x = _ref2[2], sample.center.y = _ref2[3], sample.right.x = _ref2[4], sample.right.y = _ref2[5], sample.frozen = _ref2[6];
@@ -430,11 +464,15 @@
             sample[eye].el.setAttribute('cy', sample[eye].y);
             $(sample[eye].el).toggleClass('frozen', sample.frozen);
           }
-          if (sample[eye].sel) {
+          if ((_ref5 = sample[eye]) != null ? _ref5.sel : void 0) {
             sample[eye].sel.setAttribute('x1', sample[eye].x);
             sample[eye].sel.setAttribute('y1', sample[eye].y);
           }
-          if (last_sample && ((_ref5 = last_sample[eye]) != null ? _ref5.sel : void 0)) {
+          if ((_ref6 = sample[eye]) != null ? _ref6.lxel : void 0) {
+            sample[eye].lxel.setAttribute('x1', sample[eye].x);
+            sample[eye].lxel.setAttribute('y1', sample[eye].y);
+          }
+          if (last_sample && ((_ref7 = last_sample[eye]) != null ? _ref7.sel : void 0)) {
             last_sample[eye].sel.setAttribute('x2', sample[eye].x);
             last_sample[eye].sel.setAttribute('y2', sample[eye].y);
           }
@@ -539,6 +577,7 @@
               $target = $(evt.target);
               index = $target.data('index');
               _this.data.reading.highlight_row_of(index);
+              _this.data.reading.highlight_reference_of(index, $target.data('eye'));
               if (_this.single_mode) {
                 from = to = index;
               } else {
@@ -573,7 +612,7 @@
         }
       });
       $(svg).mousemove(function(evt) {
-        var a_x, a_y, delta, extent, eye, from, index, index_diff, point, point_delta, prev_sample, sample, to, unctm, _i, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
+        var a_x, a_y, delta, extent, eye, from, index, index_diff, point, point_delta, prev_sample, sample, to, unctm, _i, _ref1, _ref10, _ref11, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
         if (_this.mousedown) {
           _this.mousedrag = true;
           _this.$svg.addClass('dragging');
@@ -621,19 +660,22 @@
               if (sample.center) {
                 move_point((_ref2 = sample.center) != null ? _ref2.el : void 0, 'cx', 'cy', sample.center);
                 move_point((_ref3 = sample.center) != null ? _ref3.sel : void 0, 'x1', 'y1', sample.center);
-                move_point(prev_sample != null ? (_ref4 = prev_sample.center) != null ? _ref4.sel : void 0 : void 0, 'x2', 'y2', sample.center);
+                move_point(sample != null ? (_ref4 = sample.center) != null ? _ref4.lxel : void 0 : void 0, 'x1', 'y1', sample.center);
+                move_point(prev_sample != null ? (_ref5 = prev_sample.center) != null ? _ref5.sel : void 0 : void 0, 'x2', 'y2', sample.center);
               }
               if (sample.left && eye !== 'right') {
-                move_point((_ref5 = sample.left) != null ? _ref5.el : void 0, 'cx', 'cy', sample.left);
+                move_point((_ref6 = sample.left) != null ? _ref6.el : void 0, 'cx', 'cy', sample.left);
                 move_point(sample != null ? sample.iel : void 0, 'x1', 'y1', sample.left);
-                move_point((_ref6 = sample.left) != null ? _ref6.sel : void 0, 'x1', 'y1', sample.left);
+                move_point((_ref7 = sample.left) != null ? _ref7.sel : void 0, 'x1', 'y1', sample.left);
+                move_point(sample != null ? sample.left.lxel : void 0, 'x1', 'y1', sample.left);
                 move_point(prev_sample != null ? prev_sample.left.sel : void 0, 'x2', 'y2', sample.left);
               }
               if (sample.right && eye !== 'left') {
-                move_point((_ref7 = sample.right) != null ? _ref7.el : void 0, 'cx', 'cy', sample.right);
+                move_point((_ref8 = sample.right) != null ? _ref8.el : void 0, 'cx', 'cy', sample.right);
                 move_point(sample != null ? sample.iel : void 0, 'x2', 'y2', sample.right);
-                move_point((_ref8 = sample.right) != null ? _ref8.sel : void 0, 'x1', 'y1', sample.right);
-                move_point(prev_sample != null ? (_ref9 = prev_sample.right) != null ? _ref9.sel : void 0 : void 0, 'x2', 'y2', sample.right);
+                move_point((_ref9 = sample.right) != null ? _ref9.sel : void 0, 'x1', 'y1', sample.right);
+                move_point(sample != null ? (_ref10 = sample.right) != null ? _ref10.lxel : void 0 : void 0, 'x1', 'y1', sample.right);
+                move_point(prev_sample != null ? (_ref11 = prev_sample.right) != null ? _ref11.sel : void 0 : void 0, 'x2', 'y2', sample.right);
               }
               prev_sample = sample;
             }
@@ -738,6 +780,21 @@
       return this.scale_point = moved_index;
     };
 
+    FixFix.prototype.sample_reviver = function(k, v) {
+      if ((v != null) && typeof v === 'object') {
+        if ("word" in v) {
+          return new Word(v.word, v.left, v.top, v.right, v.bottom);
+        } else if ("validity" in v) {
+          return new Gaze(v.x, v.y, v.pupil, v.validity);
+        } else if ("time" in v) {
+          return new Sample(v.time, v.rs, v.blink, v.left, v.right, v.duration, v.start, v.end);
+        } else if ("samples" in v) {
+          return new Reading(v.samples, v.flags, v.row_bounds || []);
+        }
+      }
+      return v;
+    };
+
     FixFix.prototype.load = function(file) {
       var _this = this;
       this.opts.load = file;
@@ -745,20 +802,7 @@
         url: "load.json",
         dataType: 'json',
         data: this.opts,
-        revivers: function(k, v) {
-          if ((v != null) && typeof v === 'object') {
-            if ("word" in v) {
-              return new Word(v.word, v.left, v.top, v.right, v.bottom);
-            } else if ("validity" in v) {
-              return new Gaze(v.x, v.y, v.pupil, v.validity);
-            } else if ("time" in v) {
-              return new Sample(v.time, v.rs, v.blink, v.left, v.right, v.duration, v.start, v.end);
-            } else if ("samples" in v) {
-              return new Reading(v.samples, v.flags, v.row_bounds || []);
-            }
-          }
-          return v;
-        }
+        revivers: this.sample_reviver
       })).then(function(data) {
         var display_end, index, sample, type, _i, _j, _len, _len1, _ref1, _ref2, _results;
         _results = [];
@@ -771,6 +815,7 @@
               break;
             case 'reading':
               _this.reading_file = file;
+              delete _this.reference_file;
               if (_this.data.reading.flags.center) {
                 _ref1 = _this.data.reading.samples;
                 for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
@@ -795,6 +840,44 @@
           }
         }
         return _results;
+      });
+    };
+
+    FixFix.prototype.load_reference = function(file) {
+      var _this = this;
+      this.opts.load = file;
+      return ($.ajax({
+        url: "load.json",
+        dataType: 'json',
+        data: this.opts,
+        revivers: this.sample_reviver
+      })).then(function(data) {
+        var i, len, ref_samples, sample, samples, _i, _len;
+        _this.reference_file = file;
+        ref_samples = data.payload.reading.samples;
+        samples = _this.data.reading.samples;
+        i = 0;
+        len = samples.length;
+        for (_i = 0, _len = ref_samples.length; _i < _len; _i++) {
+          sample = ref_samples[_i];
+          while (i < len && samples[i].time < sample.time) {
+            i += 1;
+          }
+          if (i >= len) {
+            break;
+          }
+          if (samples[i].time === sample.time && samples[i].duration === sample.duration) {
+            if (_this.data.reading.flags.center) {
+              sample.build_center();
+            }
+            samples[i].reference = {
+              left: sample.left,
+              right: sample.right,
+              center: sample.center
+            };
+          }
+        }
+        return _this.render_reading();
       });
     };
 
@@ -839,6 +922,22 @@
       _ref2 = ['left', 'right', 'center'];
       for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
         eye = _ref2[_i];
+        if (this.reference_file) {
+          treedraw(this.svg, this.svg.group(this.reading_group), start, end, tree_factor, function(parent, index) {
+            var sample;
+            sample = samples[index];
+            if (sample != null) {
+              return sample.render_reference(_this.svg, parent, eye);
+            }
+          });
+          treedraw(this.svg, this.svg.group(this.reading_group), start, end, tree_factor, function(parent, index) {
+            var sample;
+            sample = samples[index];
+            if (sample != null) {
+              return sample.render_reference_line(_this.svg, parent, eye);
+            }
+          });
+        }
         if (this.data.reading.flags.lines) {
           treedraw(this.svg, this.svg.group(this.reading_group), start, end - 1, tree_factor, function(parent, index) {
             var sample1, sample2;
@@ -1097,7 +1196,7 @@
       });
       fixfix.$svg.on('rendered', function(evt) {
         var eye, _i, _len, _ref1, _results;
-        _ref1 = ['left', 'center', 'right'];
+        _ref1 = ['left', 'center', 'right', 'ref'];
         _results = [];
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
           eye = _ref1[_i];
@@ -1230,15 +1329,15 @@
           duration: 0
         },
         build: function($trigger, evt) {
-          var path;
+          var ext, path, type;
           path = $trigger.find('a').attr('rel');
+          type = path[path.length - 1] === '/' ? 'directory' : 'file';
+          ext = path.match(/[^.\/]*$/)[0];
           return {
             items: {
               "delete": {
                 name: "Delete",
                 callback: function(key, options) {
-                  var type;
-                  type = path[path.length - 1] === '/' ? 'directory' : 'file';
                   if (confirm("Are you sure you wish to delete the " + type + " " + path + "?")) {
                     return $.ajax({
                       url: 'delete' + path,
@@ -1248,6 +1347,13 @@
                       }
                     });
                   }
+                }
+              },
+              reference: {
+                name: "Load Reference",
+                disabled: type !== 'file' || ["fixfix", "tsv", "xml"].indexOf(ext) === -1 || fixfix.reading_file === path,
+                callback: function(key, options) {
+                  return fixfix.load_reference(path);
                 }
               },
               folder: {
