@@ -956,7 +956,6 @@
       reinit_sliders = function() {
         var display_end_time, display_start_time, end, end_pip, end_time, max_num_pips, minor, minor_pip, minors, num_pips, pip, range, samples, start, start_pip, start_time, x, _i, _len, _ref1, _ref2,
           _this = this;
-        console.log(fixfix.data.reading);
         _ref1 = fixfix.display_start_end, start = _ref1[0], end = _ref1[1];
         samples = fixfix.data.reading.samples;
         _ref2 = [0, start, end - 1, samples.length - 1].map(function(index) {
