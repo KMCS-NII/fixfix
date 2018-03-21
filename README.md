@@ -16,7 +16,7 @@ References
 
 Documentation
 -------------
-English manual is available <a href="">here</a>.
+English manual is available <a href="https://github.com/KMCS-NII/fixfix/blob/master/documents/manual_en.pdf">here</a>.
 
 Acknowledgements
 ----------------
