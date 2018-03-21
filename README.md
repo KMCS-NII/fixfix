@@ -1,3 +1,5 @@
+<img src="https://github.com/KMCS-NII/fixfix/blob/master/logo/FixFix_logodata2.png" width=300 alt="FixFix">
+
 About FixFix
 ------------
 FixFix is a web-based editor for fixations detected in gaze datasets of reading activities.
