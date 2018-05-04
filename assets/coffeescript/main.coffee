@@ -1237,3 +1237,6 @@ class window.FixFixUI
                 fadeOut(400)
 
         addSlideHint("To upload, drag and drop your files into FixFix file browser")
+
+        $('#sidebar').dblclick ->
+            $('#sidebar .browser_container, #fix-options').fadeToggle()
